@@ -4,20 +4,16 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
-import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
-import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.math.Rectangle;
 
 public class MenuScreen implements Screen {
     private final Core game;
     private SpriteBatch batch;
-    private BitmapFont font;
-    private Texture logoTexture;
     private GlyphLayout layout;
+    private float animTimer;
+    private static final float FRAME_TIME = 0.1f;
 
     // Menu items
     private static final String[] MENU_ITEMS = {"Play", "Instructions", "Other", "Exit"};
@@ -35,19 +31,6 @@ public class MenuScreen implements Screen {
         batch = new SpriteBatch();
         layout = new GlyphLayout();
 
-        // Load font
-        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/AgencyFB.ttf"));
-        FreeTypeFontParameter parameter = new FreeTypeFontParameter();
-        parameter.size = 36;
-        parameter.color = Color.WHITE;
-        parameter.minFilter = Texture.TextureFilter.Linear;
-        parameter.magFilter = Texture.TextureFilter.Linear;
-        font = generator.generateFont(parameter);
-        generator.dispose();
-
-        // Load logo
-        logoTexture = new Texture(Gdx.files.internal("logo(white).png"));
-
         // Create menu bounds
         menuBounds = new Rectangle[MENU_ITEMS.length];
         updateMenuPositions();
@@ -57,7 +40,7 @@ public class MenuScreen implements Screen {
         float startY = (Gdx.graphics.getHeight() + TEXT_SPACING * (MENU_ITEMS.length - 1)) / 2;
 
         for (int i = 0; i < MENU_ITEMS.length; i++) {
-            layout.setText(font, MENU_ITEMS[i]);
+            layout.setText(game.menuFont, MENU_ITEMS[i]);
             float y = startY - (i * TEXT_SPACING);
             menuBounds[i] = new Rectangle(LEFT_MARGIN, y - layout.height, layout.width, layout.height);
         }
@@ -68,23 +51,50 @@ public class MenuScreen implements Screen {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        animTimer += delta;
+
         batch.begin();
+
+        // Background Vid
+        if (game.backgroundAnimation.size > 0) {
+            int frame = (int)(animTimer / FRAME_TIME) % game.backgroundAnimation.size;
+            batch.draw(game.backgroundAnimation.get(frame), 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        }
+
+        // Shadow
+        batch.draw(game.shadow, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         // Draw logo
         float logoSize = 300;
-        batch.draw(logoTexture, 20, Gdx.graphics.getHeight() - logoSize + 20, logoSize, logoSize);
+        batch.draw(game.logoTexture, 20, Gdx.graphics.getHeight() - logoSize + 20, logoSize, logoSize);
 
-        // Draw menu items
+        // Calculate mouse position once for both hover and click detection
+        float mouseX = Gdx.input.getX();
+        float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
+
+        // Draw menu items with hover effects
         for (int i = 0; i < MENU_ITEMS.length; i++) {
-            font.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
+            boolean isHovered = menuBounds[i].contains(mouseX, mouseY);
+
+            if (isHovered) {
+                // Draw drop shadow for hovered text (offset by 2 pixels)
+                game.menuFont.setColor(0, 0, 0, 0.7f); // Semi-transparent black shadow
+                game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN + 2, menuBounds[i].y + menuBounds[i].height - 2);
+
+                // Draw yellow text on top
+                game.menuFont.setColor(Color.YELLOW);
+                game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
+            } else {
+                // Draw normal white text
+                game.menuFont.setColor(Color.WHITE);
+                game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
+            }
         }
 
         batch.end();
 
         // Handle clicks
         if (Gdx.input.justTouched()) {
-            float mouseX = Gdx.input.getX();
-            float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
 
             for (int i = 0; i < MENU_ITEMS.length; i++) {
                 if (menuBounds[i].contains(mouseX, mouseY)) {
@@ -98,7 +108,7 @@ public class MenuScreen implements Screen {
     private void handleMenuClick(int index) {
         switch (index) {
             case 0: System.out.println("Play wala pa"); break;
-            case 1: System.out.println("Instructions"); break;
+            case 1: game.setScreen(new Instructions(game)); break;
             case 2: System.out.println("Test Click #3 rar"); break;
             case 3: Gdx.app.exit(); break;
         }
@@ -123,7 +133,6 @@ public class MenuScreen implements Screen {
     @Override
     public void dispose() {
         batch.dispose();
-        font.dispose();
-        logoTexture.dispose();
+
     }
 }
