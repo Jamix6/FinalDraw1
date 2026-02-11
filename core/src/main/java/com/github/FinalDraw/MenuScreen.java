@@ -15,6 +15,11 @@ public class MenuScreen implements Screen {
     private float animTimer;
     private static final float FRAME_TIME = 0.1f;
 
+    // Fade in effect
+    private float fadeTimer;
+    private float alpha;
+    private static final float FADE_IN_DURATION = 1.0f;
+
     // Menu items
     private static final String[] MENU_ITEMS = {"Play", "Instructions", "Other", "Exit"};
     private Rectangle[] menuBounds;
@@ -30,6 +35,10 @@ public class MenuScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
         layout = new GlyphLayout();
+
+        // Initialize fade-in effect
+        fadeTimer = 0f;
+        alpha = 0f;
 
         // Create menu bounds
         menuBounds = new Rectangle[MENU_ITEMS.length];
@@ -53,7 +62,14 @@ public class MenuScreen implements Screen {
 
         animTimer += delta;
 
+        // Update fade timer
+        fadeTimer += delta;
+        alpha = Math.min(fadeTimer / FADE_IN_DURATION, 1);
+
         batch.begin();
+
+        // Apply fade-in effect to all elements
+        batch.setColor(1f, 1f, 1f, alpha);
 
         // Background Vid
         if (game.backgroundAnimation.size > 0) {
@@ -78,19 +94,21 @@ public class MenuScreen implements Screen {
 
             if (isHovered) {
                 // Draw drop shadow for hovered text (offset by 2 pixels)
-                game.menuFont.setColor(0, 0, 0, 0.7f); // Semi-transparent black shadow
+                game.menuFont.setColor(0, 0, 0, 0.7f * alpha);
                 game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN + 2, menuBounds[i].y + menuBounds[i].height - 2);
 
                 // Draw yellow text on top
-                game.menuFont.setColor(Color.YELLOW);
+                game.menuFont.setColor(1f, 1f, 0f, alpha); // Yellow with fade
                 game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
             } else {
                 // Draw normal white text
-                game.menuFont.setColor(Color.WHITE);
+                game.menuFont.setColor(1f, 1f, 1f, alpha); // White with fade
                 game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
             }
         }
 
+        // Reset batch color
+        batch.setColor(Color.WHITE);
         batch.end();
 
         // Handle clicks

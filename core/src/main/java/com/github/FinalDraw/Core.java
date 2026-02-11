@@ -19,6 +19,7 @@ public class Core extends Game {
     public Texture backgroundRectangle;
     public Texture shadow;
     public Texture logoTexture;
+    public Texture splash;
     public BitmapFont menuFont;
     public BitmapFont titleFont;
     public BitmapFont bodyFont;
@@ -26,7 +27,7 @@ public class Core extends Game {
     @Override
     public void create() {
         preloadAssets();
-        this.setScreen(new MenuScreen(this));
+        this.setScreen(new Splash());
     }
 
     private void preloadAssets() {
@@ -50,6 +51,7 @@ public class Core extends Game {
             backgroundRectangle = new Texture(Gdx.files.internal("BG/rectongle.png"));
             shadow = new Texture(Gdx.files.internal("BG/Shadow.png"));
             logoTexture = new Texture(Gdx.files.internal("logo(white).png"));
+            splash = new Texture(Gdx.files.internal("splash.png"));
         } catch (Exception e) {
             Gdx.app.error("Core", "Error loading textures", e);
         }
@@ -58,6 +60,7 @@ public class Core extends Game {
         loadFonts();
 
         Gdx.app.log("Core", "All assets loaded");
+        Gdx.app.log("Splash", "Loading Splash Screen");
     }
 
     private void loadFonts() {
