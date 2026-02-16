@@ -23,7 +23,7 @@ public class Core extends Game {
     public BitmapFont menuFont;
     public BitmapFont titleFont;
     public BitmapFont bodyFont;
-
+    public int difficulty = 1;
     @Override
     public void create() {
         preloadAssets();
@@ -110,4 +110,5 @@ public class Core extends Game {
 
         super.dispose();
     }
+
 }

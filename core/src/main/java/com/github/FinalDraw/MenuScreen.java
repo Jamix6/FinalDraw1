@@ -21,7 +21,7 @@ public class MenuScreen implements Screen {
     private static final float FADE_IN_DURATION = 1.0f;
 
     // Menu items
-    private static final String[] MENU_ITEMS = {"Play", "Instructions", "Other", "Exit"};
+    private static final String[] MENU_ITEMS = {"Play", "Instructions", "Settings", "Exit"};
     private Rectangle[] menuBounds;
 
     private static final float LEFT_MARGIN = 50;
@@ -125,9 +125,9 @@ public class MenuScreen implements Screen {
 
     private void handleMenuClick(int index) {
         switch (index) {
-            case 0: System.out.println("Play wala pa"); break;
+            case 0: game.setScreen(new GameScreen(game)); break;
             case 1: game.setScreen(new Instructions(game)); break;
-            case 2: System.out.println("Test Click #3 rar"); break;
+            case 2: game.setScreen(new SettingsScreen(game)); break;
             case 3: Gdx.app.exit(); break;
         }
     }
