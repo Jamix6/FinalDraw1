@@ -4,6 +4,8 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.math.Rectangle;
@@ -27,6 +29,13 @@ public class MenuScreen implements Screen {
     private static final float LEFT_MARGIN = 50;
     private static final float TEXT_SPACING = 60;
 
+    private Texture solidPixel;
+    private boolean isLevelSelectOpen;
+    private Rectangle levelPanelBounds;
+    private Rectangle easyBounds;
+    private Rectangle mediumBounds;
+    private Rectangle hardBounds;
+
     public MenuScreen(Core game) {
         this.game = game;
     }
@@ -36,6 +45,12 @@ public class MenuScreen implements Screen {
         batch = new SpriteBatch();
         layout = new GlyphLayout();
 
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        solidPixel = new Texture(pixmap);
+        pixmap.dispose();
+
         // Initialize fade-in effect
         fadeTimer = 0f;
         alpha = 0f;
@@ -43,6 +58,7 @@ public class MenuScreen implements Screen {
         // Create menu bounds
         menuBounds = new Rectangle[MENU_ITEMS.length];
         updateMenuPositions();
+        updateLevelSelectPositions();
     }
 
     private void updateMenuPositions() {
@@ -53,6 +69,15 @@ public class MenuScreen implements Screen {
             float y = startY - (i * TEXT_SPACING);
             menuBounds[i] = new Rectangle(LEFT_MARGIN, y - layout.height, layout.width, layout.height);
         }
+    }
+
+    private void updateLevelSelectPositions() {
+        float w = Gdx.graphics.getWidth();
+        float h = Gdx.graphics.getHeight();
+        levelPanelBounds = new Rectangle(w / 2f - 220f, h / 2f - 140f, 440f, 280f);
+        easyBounds = new Rectangle(levelPanelBounds.x + 60f, levelPanelBounds.y + 180f, 320f, 45f);
+        mediumBounds = new Rectangle(levelPanelBounds.x + 60f, levelPanelBounds.y + 120f, 320f, 45f);
+        hardBounds = new Rectangle(levelPanelBounds.x + 60f, levelPanelBounds.y + 60f, 320f, 45f);
     }
 
     @Override
@@ -107,12 +132,60 @@ public class MenuScreen implements Screen {
             }
         }
 
+        if (isLevelSelectOpen && solidPixel != null) {
+            batch.setColor(0f, 0f, 0f, 0.5f * alpha);
+            batch.draw(solidPixel, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            batch.setColor(0.12f, 0.12f, 0.12f, 0.95f * alpha);
+            batch.draw(solidPixel, levelPanelBounds.x, levelPanelBounds.y, levelPanelBounds.width, levelPanelBounds.height);
+
+            game.titleFont.setColor(1f, 1f, 1f, alpha);
+            String title = "SELECT LEVEL";
+            layout.setText(game.titleFont, title);
+            game.titleFont.draw(batch, title, levelPanelBounds.x + levelPanelBounds.width / 2f - layout.width / 2f, levelPanelBounds.y + levelPanelBounds.height - 20f);
+
+            game.bodyFont.setColor(1f, 1f, 1f, alpha);
+            layout.setText(game.bodyFont, "Easy");
+            game.bodyFont.draw(batch, "Easy", easyBounds.x, easyBounds.y + 32f);
+            layout.setText(game.bodyFont, "Medium");
+            game.bodyFont.draw(batch, "Medium", mediumBounds.x, mediumBounds.y + 32f);
+            layout.setText(game.bodyFont, "Hard");
+            game.bodyFont.draw(batch, "Hard", hardBounds.x, hardBounds.y + 32f);
+        }
+
         // Reset batch color
         batch.setColor(Color.WHITE);
         batch.end();
 
+        if (isLevelSelectOpen && Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            isLevelSelectOpen = false;
+        }
+
         // Handle clicks
         if (Gdx.input.justTouched()) {
+            if (isLevelSelectOpen) {
+                if (easyBounds.contains(mouseX, mouseY)) {
+                    game.difficulty = 0;
+                    isLevelSelectOpen = false;
+                    game.setScreen(new GameScreen(game));
+                    return;
+                }
+                if (mediumBounds.contains(mouseX, mouseY)) {
+                    game.difficulty = 1;
+                    isLevelSelectOpen = false;
+                    game.setScreen(new GameScreen(game));
+                    return;
+                }
+                if (hardBounds.contains(mouseX, mouseY)) {
+                    game.difficulty = 2;
+                    isLevelSelectOpen = false;
+                    game.setScreen(new GameScreen(game));
+                    return;
+                }
+                if (!levelPanelBounds.contains(mouseX, mouseY)) {
+                    isLevelSelectOpen = false;
+                }
+                return;
+            }
 
             for (int i = 0; i < MENU_ITEMS.length; i++) {
                 if (menuBounds[i].contains(mouseX, mouseY)) {
@@ -125,7 +198,7 @@ public class MenuScreen implements Screen {
 
     private void handleMenuClick(int index) {
         switch (index) {
-            case 0: game.setScreen(new GameScreen(game)); break;
+            case 0: isLevelSelectOpen = true; break;
             case 1: game.setScreen(new Instructions(game)); break;
             case 2: game.setScreen(new SettingsScreen(game)); break;
             case 3: Gdx.app.exit(); break;
@@ -136,6 +209,7 @@ public class MenuScreen implements Screen {
     public void resize(int width, int height) {
         if (width > 0 && height > 0) {
             updateMenuPositions();
+            updateLevelSelectPositions();
         }
     }
 
@@ -151,6 +225,10 @@ public class MenuScreen implements Screen {
     @Override
     public void dispose() {
         batch.dispose();
+        if (solidPixel != null) {
+            solidPixel.dispose();
+            solidPixel = null;
+        }
 
     }
 }
