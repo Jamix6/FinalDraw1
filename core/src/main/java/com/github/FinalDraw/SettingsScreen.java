@@ -4,8 +4,8 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 
 public class SettingsScreen implements Screen {
@@ -13,29 +13,15 @@ public class SettingsScreen implements Screen {
     private SpriteBatch batch;
     private GlyphLayout layout;
 
-    //Diff options
-    private static final String[] DIFFICULTIES = {"Easy", "Medium", "Hard"};
-    private static final String[] DIFFICULTY_DESCRIPTIONS = {
-        "Player: 5 lives | AI: 5 lives",
-        "Player: 5 lives | AI: 7 lives",
-        "Player: 5 lives | AI: 11 lives"
-    };
-
-    // Current selected difficulty (stored in Core)
-    private int selectedDifficulty;
-
-
-    private Rectangle[] difficultyButtons;
+    private Rectangle panelBounds;
     private Rectangle backButton;
-
-    // Diff values
-    public static final int PLAYER_LIVES = 5;
-    public static final int[] AI_LIVES = {5, 7, 11};
+    private Rectangle musicSliderBounds;
+    private Rectangle sfxSliderBounds;
+    private Rectangle voiceSliderBounds;
+    private int activeSlider = -1;
 
     public SettingsScreen(Core game) {
         this.game = game;
-        // Load current difficulty from Core (default to Medium/1 if not set)
-        this.selectedDifficulty = game.difficulty; // No need for -1 check now
     }
 
     @Override
@@ -44,24 +30,29 @@ public class SettingsScreen implements Screen {
         layout = new GlyphLayout();
 
         updateButtonPositions();
+        game.playMenuMusic();
     }
 
     private void updateButtonPositions() {
         float screenWidth = Gdx.graphics.getWidth();
         float screenHeight = Gdx.graphics.getHeight();
 
+        float panelW = Math.min(560f, screenWidth - 80f);
+        float panelH = 360f;
+        float panelX = screenWidth / 2f - panelW / 2f;
+        float panelY = screenHeight / 2f - panelH / 2f;
+        panelBounds = new Rectangle(panelX, panelY, panelW, panelH);
 
-        difficultyButtons = new Rectangle[DIFFICULTIES.length];
-        float buttonStartY = screenHeight / 2 + 100;
-        float buttonSpacing = 120;
+        float sliderWidth = panelW - 120f;
+        float sliderHeight = 26f;
+        float sliderX = panelX + 60f;
+        float topY = panelY + panelH - 135f;
+        float gap = 80f;
+        musicSliderBounds = new Rectangle(sliderX, topY, sliderWidth, sliderHeight);
+        sfxSliderBounds = new Rectangle(sliderX, topY - gap, sliderWidth, sliderHeight);
+        voiceSliderBounds = new Rectangle(sliderX, topY - gap * 2f, sliderWidth, sliderHeight);
 
-        for (int i = 0; i < DIFFICULTIES.length; i++) {
-            float buttonY = buttonStartY - (i * buttonSpacing);
-            difficultyButtons[i] = new Rectangle(screenWidth/2 - 150, buttonY, 300, 80);
-        }
-
-
-        backButton = new Rectangle(screenWidth/2 - 75, 80, 150, 50);
+        backButton = new Rectangle(panelX + panelW / 2f - 90f, panelY + 25f, 180f, 50f);
     }
 
     @Override
@@ -77,120 +68,109 @@ public class SettingsScreen implements Screen {
 
 
         game.titleFont.setColor(Color.WHITE);
-        layout.setText(game.titleFont, "SETTINGS");
-        game.titleFont.draw(batch, "SETTINGS",
+        String header = "SETTINGS";
+        layout.setText(game.titleFont, header);
+        game.titleFont.draw(batch, header,
             (Gdx.graphics.getWidth() - layout.width) / 2,
             Gdx.graphics.getHeight() - 50);
 
+        batch.setColor(0f, 0f, 0f, 0.55f);
+        batch.draw(game.backgroundRectangle, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height);
+        batch.setColor(Color.WHITE);
 
-        game.bodyFont.setColor(Color.YELLOW);
-        String subtitle = "Select Difficulty";
-        layout.setText(game.bodyFont, subtitle);
-        game.bodyFont.draw(batch, subtitle,
-            (Gdx.graphics.getWidth() - layout.width) / 2,
-            Gdx.graphics.getHeight() - 120);
+        game.titleFont.setColor(Color.YELLOW);
+        String subtitle = "AUDIO";
+        layout.setText(game.titleFont, subtitle);
+        game.titleFont.draw(batch, subtitle, panelBounds.x + panelBounds.width / 2f - layout.width / 2f, panelBounds.y + panelBounds.height - 35f);
 
 
         float mouseX = Gdx.input.getX();
         float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
 
-
-        for (int i = 0; i < DIFFICULTIES.length; i++) {
-            drawDifficultyButton(i, mouseX, mouseY);
-        }
-
-
         drawBackButton(mouseX, mouseY);
 
-
-        game.bodyFont.setColor(Color.CYAN);
-        String currentSetting = "Current: " + DIFFICULTIES[selectedDifficulty];
-        layout.setText(game.bodyFont, currentSetting);
-        game.bodyFont.draw(batch, currentSetting,
-            (Gdx.graphics.getWidth() - layout.width) / 2,
-            200);
-
-
-        game.bodyFont.setColor(Color.LIGHT_GRAY);
-        String livesInfo = "Player: 5 lives | AI: " + AI_LIVES[selectedDifficulty] + " lives";
-        layout.setText(game.bodyFont, livesInfo);
-        game.bodyFont.draw(batch, livesInfo,
-            (Gdx.graphics.getWidth() - layout.width) / 2,
-            160);
+        drawAudioSlider("Music", musicSliderBounds, game.getMusicVolume());
+        drawAudioSlider("SFX", sfxSliderBounds, game.getSfxVolume());
+        drawAudioSlider("Voice", voiceSliderBounds, game.getVoiceVolume());
 
         batch.end();
 
+        boolean touching = Gdx.input.isTouched();
+        if (!touching) {
+            activeSlider = -1;
+        } else if (activeSlider != -1) {
+            updateActiveSlider(mouseX);
+        }
 
         if (Gdx.input.justTouched()) {
-            // Check difficulty buttons
-            for (int i = 0; i < difficultyButtons.length; i++) {
-                if (difficultyButtons[i].contains(mouseX, mouseY)) {
-                    selectedDifficulty = i;
-                    game.difficulty = i; // Save to Core
-                    break;
-                }
+            if (musicSliderBounds.contains(mouseX, mouseY)) {
+                game.playButtonSfx();
+                activeSlider = 0;
+                updateActiveSlider(mouseX);
+            } else if (sfxSliderBounds.contains(mouseX, mouseY)) {
+                game.playButtonSfx();
+                activeSlider = 1;
+                updateActiveSlider(mouseX);
+            } else if (voiceSliderBounds.contains(mouseX, mouseY)) {
+                game.playButtonSfx();
+                activeSlider = 2;
+                updateActiveSlider(mouseX);
             }
 
-
             if (backButton.contains(mouseX, mouseY)) {
+                game.playButtonSfx();
                 returnToMenu();
             }
         }
     }
 
-    private void drawDifficultyButton(int index, float mouseX, float mouseY) {
-        String difficultyName = DIFFICULTIES[index];
-        String description = DIFFICULTY_DESCRIPTIONS[index];
-        Rectangle bounds = difficultyButtons[index];
-        boolean isSelected = (index == selectedDifficulty);
-        boolean isHovered = bounds.contains(mouseX, mouseY);
+    private void drawAudioSlider(String labelText, Rectangle bounds, float value) {
+        float v = clamp01(value);
 
-        // Draw button background
-        if (isSelected) {
-            // Selected button (gold background)
-            batch.setColor(1f, 0.84f, 0f, 0.8f); // Gold color
-        } else if (isHovered) {
-            // Hovered button (light gray background)
-            batch.setColor(0.6f, 0.6f, 0.6f, 0.8f);
-        } else {
-            // Normal button (dark gray background)
-            batch.setColor(0.3f, 0.3f, 0.3f, 0.8f);
-        }
+        game.bodyFont.setColor(Color.WHITE);
+        layout.setText(game.bodyFont, labelText);
+        game.bodyFont.draw(batch, labelText, bounds.x, bounds.y + 52f);
 
-        batch.draw(game.backgroundRectangle,
-            bounds.x, bounds.y, bounds.width, bounds.height);
+        String pct = (int) (v * 100f) + "%";
+        layout.setText(game.bodyFont, pct);
+        game.bodyFont.draw(batch, pct, bounds.x + bounds.width - layout.width, bounds.y + 52f);
 
+        batch.setColor(0.15f, 0.15f, 0.15f, 0.85f);
+        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, bounds.width, bounds.height);
 
-        if (isSelected) {
-            game.titleFont.setColor(Color.BLACK);
-        } else if (isHovered) {
-            game.titleFont.setColor(Color.YELLOW);
-        } else {
-            game.titleFont.setColor(Color.WHITE);
-        }
+        float filledW = bounds.width * v;
+        batch.setColor(1f, 0.84f, 0f, 0.85f);
+        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, filledW, bounds.height);
 
-        layout.setText(game.titleFont, difficultyName);
-        game.titleFont.draw(batch, difficultyName,
-            bounds.x + (bounds.width - layout.width) / 2,
-            bounds.y + bounds.height - 5); // Changed from -20 to -25 (moved up)
-
-
-        if (isSelected) {
-            game.bodyFont.setColor(Color.BLACK);
-        } else if (isHovered) {
-            game.bodyFont.setColor(Color.LIGHT_GRAY);
-        } else {
-            game.bodyFont.setColor(0.8f, 0.8f, 0.8f, 1f);
-        }
-
-        layout.setText(game.bodyFont, description);
-        game.bodyFont.draw(batch, description,
-            bounds.x + (bounds.width - layout.width) / 2,
-            bounds.y + 25); // Changed from 30 to 25 (moved down)
-
-
+        float knobW = 18f;
+        float knobH = bounds.height + 12f;
+        float knobX = bounds.x + filledW - knobW / 2f;
+        float knobY = bounds.y - (knobH - bounds.height) / 2f;
+        batch.setColor(Color.WHITE);
+        batch.draw(game.backgroundRectangle, knobX, knobY, knobW, knobH);
 
         batch.setColor(Color.WHITE);
+    }
+
+    private void updateActiveSlider(float mouseX) {
+        if (activeSlider == 0) {
+            game.setMusicVolume(sliderValue(musicSliderBounds, mouseX));
+        } else if (activeSlider == 1) {
+            game.setSfxVolume(sliderValue(sfxSliderBounds, mouseX));
+        } else if (activeSlider == 2) {
+            game.setVoiceVolume(sliderValue(voiceSliderBounds, mouseX));
+        }
+    }
+
+    private float sliderValue(Rectangle bounds, float mouseX) {
+        float t = (mouseX - bounds.x) / bounds.width;
+        return clamp01(t);
+    }
+
+    private float clamp01(float v) {
+        if (v < 0f) return 0f;
+        if (v > 1f) return 1f;
+        return v;
     }
 
     private void drawBackButton(float mouseX, float mouseY) {

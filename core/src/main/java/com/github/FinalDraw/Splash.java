@@ -28,6 +28,9 @@ public class Splash implements Screen {
 
         // Get Core reference now that it's initialized
         game = (Core) Gdx.app.getApplicationListener();
+        if (game != null) {
+            game.playMenuMusic();
+        }
     }
 
     @Override

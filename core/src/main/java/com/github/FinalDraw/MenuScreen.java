@@ -6,8 +6,8 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 
 public class MenuScreen implements Screen {
@@ -59,6 +59,8 @@ public class MenuScreen implements Screen {
         menuBounds = new Rectangle[MENU_ITEMS.length];
         updateMenuPositions();
         updateLevelSelectPositions();
+
+        game.playMenuMusic();
     }
 
     private void updateMenuPositions() {
@@ -164,18 +166,21 @@ public class MenuScreen implements Screen {
         if (Gdx.input.justTouched()) {
             if (isLevelSelectOpen) {
                 if (easyBounds.contains(mouseX, mouseY)) {
+                    game.playButtonSfx();
                     game.difficulty = 0;
                     isLevelSelectOpen = false;
                     game.setScreen(new GameScreen(game));
                     return;
                 }
                 if (mediumBounds.contains(mouseX, mouseY)) {
+                    game.playButtonSfx();
                     game.difficulty = 1;
                     isLevelSelectOpen = false;
                     game.setScreen(new GameScreen(game));
                     return;
                 }
                 if (hardBounds.contains(mouseX, mouseY)) {
+                    game.playButtonSfx();
                     game.difficulty = 2;
                     isLevelSelectOpen = false;
                     game.setScreen(new GameScreen(game));
@@ -189,6 +194,7 @@ public class MenuScreen implements Screen {
 
             for (int i = 0; i < MENU_ITEMS.length; i++) {
                 if (menuBounds[i].contains(mouseX, mouseY)) {
+                    game.playButtonSfx();
                     handleMenuClick(i);
                     break;
                 }
@@ -220,7 +226,8 @@ public class MenuScreen implements Screen {
     public void resume() {}
 
     @Override
-    public void hide() {}
+    public void hide() {
+    }
 
     @Override
     public void dispose() {

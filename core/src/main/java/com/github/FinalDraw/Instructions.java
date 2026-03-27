@@ -4,8 +4,8 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 
 public class Instructions implements Screen {
@@ -79,6 +79,7 @@ public class Instructions implements Screen {
         layout = new GlyphLayout();
 
         updateButtonPositions();
+        game.playMenuMusic();
     }
 
     private void updateButtonPositions() {
@@ -153,10 +154,13 @@ public class Instructions implements Screen {
         // Handle button clicks
         if (Gdx.input.justTouched()) {
             if (prevButton.contains(mouseX, mouseY) && currentPage > 0) {
+                game.playButtonSfx();
                 currentPage--;
             } else if (nextButton.contains(mouseX, mouseY) && currentPage < TOTAL_PAGES - 1) {
+                game.playButtonSfx();
                 currentPage++;
             } else if (backButton.contains(mouseX, mouseY)) {
+                game.playButtonSfx();
                 game.setScreen(new MenuScreen(game));
             }
         }
@@ -218,8 +222,6 @@ public class Instructions implements Screen {
         batch.dispose();
     }
 }
-
-
 
 
 
