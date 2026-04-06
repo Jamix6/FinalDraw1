@@ -15,7 +15,7 @@ public class Instructions implements Screen {
 
     // Navigation
     private int currentPage = 0;
-    private static final int TOTAL_PAGES = 5;
+    private static final int TOTAL_PAGES = 6;
     private Rectangle prevButton, nextButton, backButton;
 
     // Page content
@@ -23,7 +23,8 @@ public class Instructions implements Screen {
         "[How to Win?]",
         "[Cards]",
         "[Game Progression]",
-        "[Powers]",
+        "[Powerups]",
+        "[Powerups]",
         "[Risk]"
     };
 
@@ -55,15 +56,31 @@ public class Instructions implements Screen {
             "cards to determine the winner."
         },
         {
-            "Work in Progress."
+            "Go for 17: Changes the target from 21 to 17 for BOTH.",
+            "Go for 24: Changes the target from 21 to 24 for BOTH.",
+            "Protection: Grants 2 Shield that lasts for 2 rounds.",
+            "Removal: Removes all drawn cards except hidden card.",
+            "",
+            "Reshuffle: Shuffles your entire deck including hidden.",
+            "Double Down: Raises the risk (health loss) by 1.",
+            "Foresight: Reveals the next card you will draw."
+        },
+        {
+            "Swap: Swaps one of your cards for a random card.",
+            "",
+            "Overload: Forces opponent to draw 1 more card.",
+            "Discard: Removes the highest card from your hand.",
+            "",
+            "Toss: Removes the recently placed debuff.",
+            "Clear: Removes all used powerups/debuffs this round."
         },
         {
             "- The distance of your demise is determined by",
             "the RISK. The risk changes every round.",
             "",
-            "The risk can be seen on... [wip]",
+            "- The risk can be seen as your health bar.",
             "",
-            "Once your health reaches the risk, you will lose.",
+            "- Once your health reaches 0, you will lose.",
             "",
             "Enjoy :)"
         }

@@ -35,7 +35,7 @@ public class GameScreen implements Screen {
         PROTECTION("Protection"),
         REMOVAL("Removal"),
         RESHUFFLE("Reshuffle"),
-        DOUBLE_DOWN("Double Down"),
+        DOUBLE_DOWN("DoubleDown"),
         FORESIGHT("Foresight"),
         SWAP("Swap"),
         OVERLOAD("Overload"),
@@ -69,8 +69,8 @@ public class GameScreen implements Screen {
     private boolean isPowerupPanelOpen;
     private Rectangle optionsButtonBounds;
     private Rectangle optionsPanelBounds;
+    private Rectangle optionsContinueBounds;
     private Rectangle optionsRestartBounds;
-    private Rectangle optionsChangeLevelBounds;
     private Rectangle optionsHomeBounds;
     private boolean isOptionsOpen;
     private boolean isQuitConfirmOpen;
@@ -85,8 +85,9 @@ public class GameScreen implements Screen {
     private boolean isMatchEndOpen;
     private boolean matchWon;
     private Rectangle matchEndPanelBounds;
-    private Rectangle matchEndPlayAgainBounds;
-    private Rectangle matchEndHomeBounds;
+    private Rectangle matchEndRestartBounds;
+    private Rectangle matchEndChangeLevelBounds;
+    private Rectangle matchEndExitBounds;
     private boolean showRoundOutcome;
     private boolean roundOutcomeWin;
     private boolean roundOutcomeDraw;
@@ -125,8 +126,11 @@ public class GameScreen implements Screen {
     //Game elems
     private int playerScore;
     private int aiScore;
+    private boolean playerPassed = false;
+    private boolean aiPassed = false;
     private String gameMessage;
 
+    // other textures and sthuff or game mehcnais rawhw
     private Texture gameBg;
     private boolean ownsGameBgTexture;
     private Texture solidPixel;
@@ -145,6 +149,9 @@ public class GameScreen implements Screen {
     private Texture playerDeckTexture;
     private ShaderProgram cardShader;
     private Texture powerupPanelBg;
+    private Texture optionsPanelTexture;
+    private java.util.Map<PowerupType, Texture> powerupIcons = new java.util.HashMap<>();
+    // Audio
     private Music[] aiDrawVoicesEasy;
     private Music[] aiPassVoicesEasy;
     private Music[] aiDrawVoicesMedium;
@@ -152,6 +159,7 @@ public class GameScreen implements Screen {
     private Music[] aiDrawVoicesHard;
     private Music[] aiPassVoicesHard;
     private Music currentAIVoice;
+
     private int lastDrawIdx = -1;
     private int lastPassIdx = -1;
     private boolean isAITurnPending;
@@ -175,6 +183,7 @@ public class GameScreen implements Screen {
     // Diff info
     private String difficultyName;
 
+    // Powerups INfoo
     private Array<PowerupType> playerRoundPowerups = new Array<>();
     private Array<PowerupType> aiRoundPowerups = new Array<>();
     private Array<PowerupType> playerInventoryPowerups = new Array<>();
@@ -183,6 +192,10 @@ public class GameScreen implements Screen {
     private Array<Rectangle> powerupClickBounds = new Array<>();
     private Array<PowerupType> powerupClickTypes = new Array<>();
     private Array<Integer> powerupClickSources = new Array<>();
+    private PowerupType hoveredPowerup = null;
+    private PowerupType lastPlayedSoundPowerup = null;
+    private Array<PowerupType> playerActiveDebuffs = new Array<>();
+    private Array<PowerupType> aiActiveDebuffs = new Array<>();
 
     public GameScreen(Core game) {
         this.game = game;
@@ -342,6 +355,20 @@ public class GameScreen implements Screen {
         } else {
             powerupPanelBg = null;
         }
+
+        // Load panel textures
+        if (Gdx.files.internal("Panels/optionpanel.png").exists()) {
+            optionsPanelTexture = new Texture(Gdx.files.internal("Panels/optionpanel.png"));
+        } else {
+            optionsPanelTexture = null;
+        }
+
+        for (PowerupType pt : PowerupType.values()) {
+            String iconPath = "Powerup/UI/Powerup/" + pt.name().toLowerCase().replace("_", "") + ".png";
+            if (Gdx.files.internal(iconPath).exists()) {
+                powerupIcons.put(pt, new Texture(Gdx.files.internal(iconPath)));
+            }
+        }
         aiDrawVoicesEasy = new Music[] {
             Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/1Easy/Easy_Draw1.mp3"))
         };
@@ -389,9 +416,11 @@ public class GameScreen implements Screen {
 
         optionsButtonBounds = new Rectangle(1120f, 665f, 130f, 40f);
         optionsPanelBounds = new Rectangle(880f, 470f, 340f, 210f);
-        optionsRestartBounds = new Rectangle(905f, 605f, 290f, 40f);
-        optionsChangeLevelBounds = new Rectangle(905f, 555f, 290f, 40f);
-        optionsHomeBounds = new Rectangle(905f, 505f, 290f, 40f);
+        // Centered options buttons: Continue, Restart, Home (middle of screen)
+        float optionsPanelCenterX = (REF_W - 300f) / 2f; // 300 is button width
+        optionsContinueBounds = new Rectangle(optionsPanelCenterX, 530f, 300f, 40f);
+        optionsRestartBounds = new Rectangle(optionsPanelCenterX, 480f, 300f, 40f);
+        optionsHomeBounds = new Rectangle(optionsPanelCenterX, 380f, 300f, 40f);
 
         quitConfirmPanelBounds = new Rectangle(420f, 265f, 440f, 190f);
         quitYesBounds = new Rectangle(465f, 290f, 170f, 50f);
@@ -403,8 +432,9 @@ public class GameScreen implements Screen {
         levelHardBounds = new Rectangle(470f, 280f, 340f, 45f);
 
         matchEndPanelBounds = new Rectangle(420f, 255f, 440f, 210f);
-        matchEndPlayAgainBounds = new Rectangle(470f, 345f, 340f, 50f);
-        matchEndHomeBounds = new Rectangle(470f, 285f, 340f, 50f);
+        matchEndRestartBounds = new Rectangle(470f, 380f, 340f, 40f);
+        matchEndChangeLevelBounds = new Rectangle(470f, 330f, 340f, 40f);
+        matchEndExitBounds = new Rectangle(470f, 280f, 340f, 40f);
     }
 
     private void updateLayoutTransform() {
@@ -467,14 +497,16 @@ public class GameScreen implements Screen {
         powerupClickBounds.clear();
         powerupClickTypes.clear();
         powerupClickSources.clear();
+        playerPassed = false;
+        aiPassed = false;
+        playerActiveDebuffs.clear();
+        aiActiveDebuffs.clear();
         resetRoundModifiers();
         tickShieldsForNewRound();
         generateRoundPowerups();
 
-        // Reset deck for new round
         initializeDeck();
 
-        // Draw initial cards (2 for player, 2 for AI)
         drawInitialCards();
 
         isRoundActive = true;
@@ -562,8 +594,8 @@ public class GameScreen implements Screen {
             if (!invList.removeValue(powerup, true)) return false;
         }
 
-        powerupsUsedThisRound++;
         if (isPlayerSide) {
+            powerupsUsedThisRound++;
             game.playPowerupSfx();
         }
         applyPowerup(isPlayerSide, powerup);
@@ -580,39 +612,43 @@ public class GameScreen implements Screen {
     private void applyPowerup(boolean isPlayerSide, PowerupType powerup) {
         switch (powerup) {
             case GO_FOR_17:
-                if (isPlayerSide) {
-                    playerTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, playerTargetOverride));
-                    playerTargetOverride = 17;
-                } else {
-                    aiTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, aiTargetOverride));
-                    aiTargetOverride = 17;
-                }
+                // GO_FOR_17 affects BOTH players
+                playerTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, playerTargetOverride));
+                playerTargetOverride = 17;
+                playerActiveDebuffs.add(powerup);
+                aiTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, aiTargetOverride));
+                aiTargetOverride = 17;
+                aiActiveDebuffs.add(powerup);
                 break;
             case GO_FOR_24:
-                if (isPlayerSide) {
-                    playerTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, playerTargetOverride));
-                    playerTargetOverride = 24;
-                } else {
-                    aiTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, aiTargetOverride));
-                    aiTargetOverride = 24;
-                }
+                // GO_FOR_24 affects BOTH players
+                playerTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, playerTargetOverride));
+                playerTargetOverride = 24;
+                playerActiveDebuffs.add(powerup);
+                aiTargetModifiers.add(new TargetModifier(TARGET_MOD_OVERRIDE, aiTargetOverride));
+                aiTargetOverride = 24;
+                aiActiveDebuffs.add(powerup);
                 break;
             case DOUBLE_DOWN:
                 if (isPlayerSide) {
                     playerTargetModifiers.add(new TargetModifier(TARGET_MOD_DELTA, -1));
                     playerTargetDelta -= 1;
+                    playerActiveDebuffs.add(powerup);
                 } else {
                     aiTargetModifiers.add(new TargetModifier(TARGET_MOD_DELTA, -1));
                     aiTargetDelta -= 1;
+                    aiActiveDebuffs.add(powerup);
                 }
                 break;
             case PROTECTION:
                 if (isPlayerSide) {
                     playerShield = 2;
                     playerShieldRoundsLeft = 2;
+                    playerActiveDebuffs.add(powerup);
                 } else {
                     aiShield = 2;
                     aiShieldRoundsLeft = 2;
+                    aiActiveDebuffs.add(powerup);
                 }
                 break;
             case REMOVAL:
@@ -630,6 +666,11 @@ public class GameScreen implements Screen {
                 break;
             case OVERLOAD:
                 forceOpponentDraw(isPlayerSide);
+                if (isPlayerSide) {
+                    aiActiveDebuffs.add(powerup);
+                } else {
+                    playerActiveDebuffs.add(powerup);
+                }
                 break;
             case DISCARD:
                 discardHighestCard(isPlayerSide);
@@ -644,6 +685,19 @@ public class GameScreen implements Screen {
     }
 
     private void tossLastDebuff(boolean isPlayerSide) {
+        Array<PowerupType> debuffs = isPlayerSide ? playerActiveDebuffs : aiActiveDebuffs;
+
+        if (debuffs != null && debuffs.size > 0) {
+            PowerupType lastDebuff = debuffs.pop();
+
+            if (lastDebuff == PowerupType.OVERLOAD) {
+                Array<Integer> cards = isPlayerSide ? playerCards : aiCards;
+                if (cards.size > 0) {
+                    cards.removeIndex(cards.size - 1);
+                }
+            }
+        }
+
         Array<TargetModifier> mods = isPlayerSide ? playerTargetModifiers : aiTargetModifiers;
         if (mods == null || mods.size == 0) return;
         TargetModifier last = mods.pop();
@@ -667,11 +721,13 @@ public class GameScreen implements Screen {
             playerTargetOverride = 0;
             playerTargetDelta = 0;
             playerForesightActive = false;
+            playerActiveDebuffs.clear();
             if (playerTargetModifiers != null) playerTargetModifiers.clear();
         } else {
             aiTargetOverride = 0;
             aiTargetDelta = 0;
             aiForesightActive = false;
+            aiActiveDebuffs.clear();
             if (aiTargetModifiers != null) aiTargetModifiers.clear();
         }
     }
@@ -1064,66 +1120,81 @@ public class GameScreen implements Screen {
             game.bodyFont.setColor(Color.GOLD);
             String usedText = "Used: " + powerupsUsedThisRound + "/2";
             layout.setText(game.bodyFont, usedText);
-            game.bodyFont.draw(batch, usedText, sx(panelX + panelW - pad - layout.width), sy(headerY));
+            game.bodyFont.draw(batch, usedText, sx(panelX + panelW - pad - 40f - layout.width), sy(headerY));
 
             String roundHeader = "This Round:";
             game.bodyFont.setColor(Color.WHITE);
-            game.bodyFont.draw(batch, roundHeader, sx(panelX + pad), sy(headerY));
+            game.bodyFont.draw(batch, roundHeader, sx(panelX + pad + 20f), sy(headerY));
             String roundList = formatPowerupList(playerRoundPowerups, 2);
             game.bodyFont.setColor(Color.YELLOW);
-            game.bodyFont.draw(batch, roundList, sx(panelX + pad), sy(headerY - 20f));
+            game.bodyFont.draw(batch, roundList, sx(panelX + pad + 20f), sy(headerY - 20f));
+
+            if (hoveredPowerup != null) {
+                game.bodyFont.setColor(Color.CYAN);
+                game.bodyFont.draw(batch, hoveredPowerup.getLabel(), sx(panelX + pad + 20f), sy(headerY - 40f));
+                game.bodyFont.setColor(Color.WHITE);
+            }
 
             String infoHeader = "Info:";
             game.bodyFont.setColor(Color.WHITE);
             layout.setText(game.bodyFont, infoHeader);
-            game.bodyFont.draw(batch, infoHeader, sx(panelX + panelW - pad - layout.width), sy(headerY - 20f));
+            game.bodyFont.draw(batch, infoHeader, sx(panelX + panelW - pad - 80f - layout.width), sy(headerY - 20f));
             String infoText = getPlayerPowerupInfoText();
             game.bodyFont.setColor(Color.CYAN);
             layout.setText(game.bodyFont, infoText);
-            game.bodyFont.draw(batch, infoText, sx(panelX + panelW - pad - layout.width), sy(headerY - 40f));
+            game.bodyFont.draw(batch, infoText, sx(panelX + panelW - pad - 35f - layout.width), sy(headerY - 20f));
 
-            float gridTop = headerY - 70f;
-            float gridLeft = panelX + pad;
-            float gridW = panelW - pad * 2f;
-            float gridH = panelH - 120f;
-            int cols = 3;
-            int rows = 4;
-            float gridGap = 10f;
-            float cellW = (gridW - gridGap * (cols - 1)) / cols;
-            float cellH = (gridH - gridGap * (rows - 1)) / rows;
+            // Poweurp Grid lito na akow men
+            float gridTop = headerY - 180f;
+            int cols = 5;
+            float gridGap = 15f;
+            float iconSize = 70f;
+            float cellW = iconSize + gridGap;
+            float cellH = iconSize + gridGap + 15f;
+            float totalGridWidth = cols * cellW - gridGap;
+            float gridLeft = panelX + (panelW - totalGridWidth) * 0.5f;
+
+            float refMouseX = toRefX(Gdx.input.getX());
+            float refMouseY = toRefY(Gdx.graphics.getHeight() - Gdx.input.getY());
+            hoveredPowerup = null;
 
             PowerupType[] all = PowerupType.values();
             for (int i = 0; i < all.length; i++) {
                 int r = i / cols;
                 int c = i % cols;
-                float cx = gridLeft + c * (cellW + gridGap);
-                float cy = gridTop - r * (cellH + gridGap) - cellH;
+                float cx = gridLeft + c * cellW;
+                float cy = gridTop - r * cellH;
                 PowerupType p = all[i];
                 int roundCount = countPowerup(playerRoundPowerups, p);
                 int invCount = countPowerup(playerInventoryPowerups, p);
                 int total = roundCount + invCount;
 
-                if (total > 0) {
-                    batch.setColor(1f, 0.85f, 0.2f, 0.95f);
-                } else {
-                    batch.setColor(0.2f, 0.2f, 0.2f, 0.85f);
+                Texture icon = powerupIcons.get(p);
+                if (icon != null) {
+                    batch.draw(icon, sx(cx), sy(cy), ss(iconSize), ss(iconSize));
                 }
-                batch.draw(solidPixel != null ? solidPixel : game.backgroundRectangle, sx(cx), sy(cy), ss(cellW), ss(cellH));
-                batch.setColor(Color.WHITE);
 
-                String label = p.getLabel();
-                float textX = cx + 10f;
-                float textY = cy + cellH - 12f;
-                game.bodyFont.setColor(total > 0 ? Color.BLACK : Color.LIGHT_GRAY);
-                game.bodyFont.draw(batch, label, sx(textX), sy(textY));
+                Rectangle bounds = new Rectangle(cx, cy, iconSize, iconSize);
+                boolean isHovered = bounds.contains(refMouseX, refMouseY);
+
+                if (isHovered) {
+                    hoveredPowerup = p;
+                    batch.setColor(0f, 0f, 0f, 0.2f);
+                    batch.draw(solidPixel != null ? solidPixel : game.backgroundRectangle, sx(cx), sy(cy), ss(iconSize), ss(iconSize));
+                    batch.setColor(Color.WHITE);
+                    if (lastPlayedSoundPowerup != p) {
+                        game.playButtonSfx();
+                        lastPlayedSoundPowerup = p;
+                    }
+                }
 
                 String countText = "x" + total;
                 layout.setText(game.bodyFont, countText);
-                game.bodyFont.draw(batch, countText, sx(cx + cellW - 10f - layout.width), sy(cy + 18f));
                 game.bodyFont.setColor(Color.WHITE);
+                game.bodyFont.draw(batch, countText, sx(cx + cellW - 18f - layout.width), sy(cy + 14f));
 
                 if (total > 0) {
-                    powerupClickBounds.add(new Rectangle(cx, cy, cellW, cellH));
+                    powerupClickBounds.add(new Rectangle(cx, cy, iconSize, iconSize));
                     powerupClickTypes.add(p);
                     powerupClickSources.add(roundCount > 0 ? 0 : 1);
                 }
@@ -1192,32 +1263,30 @@ public class GameScreen implements Screen {
         if (isOptionsOpen && solidPixel != null) {
             batch.setColor(0f, 0f, 0f, 0.50f);
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
-            batch.setColor(0.1f, 0.1f, 0.1f, 0.95f);
-            batch.draw(solidPixel, sx(optionsPanelBounds.x), sy(optionsPanelBounds.y), ss(optionsPanelBounds.width), ss(optionsPanelBounds.height));
             batch.setColor(Color.WHITE);
 
-            float prevScaleX = game.titleFont.getData().scaleX;
-            float prevScaleY = game.titleFont.getData().scaleY;
-            game.titleFont.getData().setScale(layoutScale * 0.55f);
-            game.titleFont.setColor(Color.WHITE);
-            String header = "OPTIONS";
-            layout.setText(game.titleFont, header);
-            game.titleFont.draw(batch, header, sx(optionsPanelBounds.x + optionsPanelBounds.width / 2f) - layout.width / 2f, sy(optionsPanelBounds.y + optionsPanelBounds.height - 25f));
-            game.titleFont.getData().setScale(prevScaleX, prevScaleY);
+            // Draw options panel texture centered
+            if (optionsPanelTexture != null) {
+                float panelWidth = 500f;
+                float panelHeight = 300f;
+                float panelX = (REF_W - panelWidth) / 2f;
+                float panelY = (REF_H - panelHeight) / 2f;
+                batch.draw(optionsPanelTexture, sx(panelX), sy(panelY), ss(panelWidth), ss(panelHeight));
+            }
 
             float prevBodyScaleX = game.bodyFont.getData().scaleX;
             float prevBodyScaleY = game.bodyFont.getData().scaleY;
             game.bodyFont.getData().setScale(layoutScale * 0.9f);
 
-            game.bodyFont.setColor(Color.WHITE);
-            layout.setText(game.bodyFont, "Restart");
-            game.bodyFont.draw(batch, "Restart", sx(optionsRestartBounds.x), sy(optionsRestartBounds.y + 28f));
+            batch.setColor(Color.WHITE);
 
-            layout.setText(game.bodyFont, "Change Level");
-            game.bodyFont.draw(batch, "Change Level", sx(optionsChangeLevelBounds.x), sy(optionsChangeLevelBounds.y + 28f));
+            // Draw debug rectangles for button click areas (optional, can be removed)
+            batch.setColor(1f, 0f, 0f, 0.2f);
+            batch.draw(solidPixel, sx(optionsContinueBounds.x), sy(optionsContinueBounds.y), ss(optionsContinueBounds.width), ss(optionsContinueBounds.height));
+            batch.draw(solidPixel, sx(optionsRestartBounds.x), sy(optionsRestartBounds.y), ss(optionsRestartBounds.width), ss(optionsRestartBounds.height));
+            batch.draw(solidPixel, sx(optionsHomeBounds.x), sy(optionsHomeBounds.y), ss(optionsHomeBounds.width), ss(optionsHomeBounds.height));
+            batch.setColor(Color.WHITE);
 
-            layout.setText(game.bodyFont, "Home / Menu");
-            game.bodyFont.draw(batch, "Home / Menu", sx(optionsHomeBounds.x), sy(optionsHomeBounds.y + 28f));
 
             game.bodyFont.getData().setScale(prevBodyScaleX, prevBodyScaleY);
         }
@@ -1257,32 +1326,6 @@ public class GameScreen implements Screen {
             game.bodyFont.getData().setScale(prevBodyScaleX, prevBodyScaleY);
         }
 
-        if (isLevelSelectOpen && solidPixel != null) {
-            batch.setColor(0f, 0f, 0f, 0.50f);
-            batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
-            batch.setColor(0.12f, 0.12f, 0.12f, 0.95f);
-            batch.draw(solidPixel, sx(levelSelectPanelBounds.x), sy(levelSelectPanelBounds.y), ss(levelSelectPanelBounds.width), ss(levelSelectPanelBounds.height));
-            batch.setColor(Color.WHITE);
-
-            float prevScaleX = game.titleFont.getData().scaleX;
-            float prevScaleY = game.titleFont.getData().scaleY;
-            game.titleFont.getData().setScale(layoutScale * 0.55f);
-            game.titleFont.setColor(Color.WHITE);
-            String header = "SELECT LEVEL";
-            layout.setText(game.titleFont, header);
-            game.titleFont.draw(batch, header, sx(levelSelectPanelBounds.x + levelSelectPanelBounds.width / 2f) - layout.width / 2f, sy(levelSelectPanelBounds.y + levelSelectPanelBounds.height - 25f));
-            game.titleFont.getData().setScale(prevScaleX, prevScaleY);
-
-            float prevBodyScaleX = game.bodyFont.getData().scaleX;
-            float prevBodyScaleY = game.bodyFont.getData().scaleY;
-            game.bodyFont.getData().setScale(layoutScale * 0.9f);
-            game.bodyFont.setColor(Color.WHITE);
-            game.bodyFont.draw(batch, "Easy", sx(levelEasyBounds.x), sy(levelEasyBounds.y + 32f));
-            game.bodyFont.draw(batch, "Medium", sx(levelMediumBounds.x), sy(levelMediumBounds.y + 32f));
-            game.bodyFont.draw(batch, "Hard", sx(levelHardBounds.x), sy(levelHardBounds.y + 32f));
-            game.bodyFont.getData().setScale(prevBodyScaleX, prevBodyScaleY);
-        }
-
         if (isMatchEndOpen && solidPixel != null) {
             batch.setColor(0f, 0f, 0f, 0.70f);
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
@@ -1302,22 +1345,86 @@ public class GameScreen implements Screen {
             float prevBodyScaleY = game.bodyFont.getData().scaleY;
             game.bodyFont.getData().setScale(layoutScale * 0.9f);
 
+            // Draw match end panel background - large dark grey rectangle
             batch.setColor(0.15f, 0.15f, 0.15f, 0.92f);
-            batch.draw(solidPixel, sx(matchEndPlayAgainBounds.x), sy(matchEndPlayAgainBounds.y), ss(matchEndPlayAgainBounds.width), ss(matchEndPlayAgainBounds.height));
-            batch.draw(solidPixel, sx(matchEndHomeBounds.x), sy(matchEndHomeBounds.y), ss(matchEndHomeBounds.width), ss(matchEndHomeBounds.height));
+            batch.draw(solidPixel, sx(matchEndPanelBounds.x), sy(matchEndPanelBounds.y), ss(matchEndPanelBounds.width), ss(matchEndPanelBounds.height));
             batch.setColor(Color.WHITE);
 
-            String playAgainText = "Play Again";
-            String menuText = "Main Menu";
+            // Draw button rectangles (darker for each button)
+            batch.setColor(0.10f, 0.10f, 0.10f, 0.85f);
+            batch.draw(solidPixel, sx(matchEndRestartBounds.x), sy(matchEndRestartBounds.y), ss(matchEndRestartBounds.width), ss(matchEndRestartBounds.height));
+            batch.draw(solidPixel, sx(matchEndChangeLevelBounds.x), sy(matchEndChangeLevelBounds.y), ss(matchEndChangeLevelBounds.width), ss(matchEndChangeLevelBounds.height));
+            batch.draw(solidPixel, sx(matchEndExitBounds.x), sy(matchEndExitBounds.y), ss(matchEndExitBounds.width), ss(matchEndExitBounds.height));
+            batch.setColor(Color.WHITE);
+
+            // Draw button text labels
             game.bodyFont.setColor(Color.WHITE);
-            layout.setText(game.bodyFont, playAgainText);
-            game.bodyFont.draw(batch, playAgainText,
-                sx(matchEndPlayAgainBounds.x + (matchEndPlayAgainBounds.width - layout.width) / 2f),
-                sy(matchEndPlayAgainBounds.y + (matchEndPlayAgainBounds.height + layout.height) / 2f));
-            layout.setText(game.bodyFont, menuText);
-            game.bodyFont.draw(batch, menuText,
-                sx(matchEndHomeBounds.x + (matchEndHomeBounds.width - layout.width) / 2f),
-                sy(matchEndHomeBounds.y + (matchEndHomeBounds.height + layout.height) / 2f));
+
+            String restartText = "Restart";
+            layout.setText(game.bodyFont, restartText);
+            game.bodyFont.draw(batch, restartText, sx(matchEndRestartBounds.x + (matchEndRestartBounds.width - layout.width) / 2f), sy(matchEndRestartBounds.y + (matchEndRestartBounds.height + layout.height) / 2f));
+
+            String changeLevelText = "Change Level";
+            layout.setText(game.bodyFont, changeLevelText);
+            game.bodyFont.draw(batch, changeLevelText, sx(matchEndChangeLevelBounds.x + (matchEndChangeLevelBounds.width - layout.width) / 2f), sy(matchEndChangeLevelBounds.y + (matchEndChangeLevelBounds.height + layout.height) / 2f));
+
+            String exitText = "Exit";
+            layout.setText(game.bodyFont, exitText);
+            game.bodyFont.draw(batch, exitText, sx(matchEndExitBounds.x + (matchEndExitBounds.width - layout.width) / 2f), sy(matchEndExitBounds.y + (matchEndExitBounds.height + layout.height) / 2f));
+
+            game.bodyFont.getData().setScale(prevBodyScaleX, prevBodyScaleY);
+
+            batch.setColor(Color.WHITE);
+        }
+
+        // Draw level select panel
+        if (isLevelSelectOpen) {
+            batch.setColor(0f, 0f, 0f, 0.70f);
+            batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
+
+            float levelPrevTitleScaleX = game.titleFont.getData().scaleX;
+            float levelPrevTitleScaleY = game.titleFont.getData().scaleY;
+            game.titleFont.getData().setScale(layoutScale * 0.95f);
+            String levelTitle = "SELECT DIFFICULTY";
+            game.titleFont.setColor(Color.WHITE);
+            layout.setText(game.titleFont, levelTitle);
+            float levelCenterX = REF_W / 2f;
+            float levelCenterY = REF_H / 2f + 100f;
+            game.titleFont.draw(batch, levelTitle, sx(levelCenterX) - layout.width / 2f, sy(levelCenterY));
+            game.titleFont.getData().setScale(levelPrevTitleScaleX, levelPrevTitleScaleY);
+
+            float levelPrevBodyScaleX = game.bodyFont.getData().scaleX;
+            float levelPrevBodyScaleY = game.bodyFont.getData().scaleY;
+            game.bodyFont.getData().setScale(layoutScale * 0.9f);
+
+            // Draw level select panel background
+            batch.setColor(0.15f, 0.15f, 0.15f, 0.92f);
+            batch.draw(solidPixel, sx(levelSelectPanelBounds.x), sy(levelSelectPanelBounds.y), ss(levelSelectPanelBounds.width), ss(levelSelectPanelBounds.height));
+            batch.setColor(Color.WHITE);
+
+            // Draw button rectangles (darker for each button)
+            batch.setColor(0.10f, 0.10f, 0.10f, 0.85f);
+            batch.draw(solidPixel, sx(levelEasyBounds.x), sy(levelEasyBounds.y), ss(levelEasyBounds.width), ss(levelEasyBounds.height));
+            batch.draw(solidPixel, sx(levelMediumBounds.x), sy(levelMediumBounds.y), ss(levelMediumBounds.width), ss(levelMediumBounds.height));
+            batch.draw(solidPixel, sx(levelHardBounds.x), sy(levelHardBounds.y), ss(levelHardBounds.width), ss(levelHardBounds.height));
+            batch.setColor(Color.WHITE);
+
+            // Draw button text labels
+            game.bodyFont.setColor(Color.WHITE);
+
+            String easyText = "Easy";
+            layout.setText(game.bodyFont, easyText);
+            game.bodyFont.draw(batch, easyText, sx(levelEasyBounds.x + (levelEasyBounds.width - layout.width) / 2f), sy(levelEasyBounds.y + (levelEasyBounds.height + layout.height) / 2f));
+
+            String mediumText = "Medium";
+            layout.setText(game.bodyFont, mediumText);
+            game.bodyFont.draw(batch, mediumText, sx(levelMediumBounds.x + (levelMediumBounds.width - layout.width) / 2f), sy(levelMediumBounds.y + (levelMediumBounds.height + layout.height) / 2f));
+
+            String hardText = "Hard";
+            layout.setText(game.bodyFont, hardText);
+            game.bodyFont.draw(batch, hardText, sx(levelHardBounds.x + (levelHardBounds.width - layout.width) / 2f), sy(levelHardBounds.y + (levelHardBounds.height + layout.height) / 2f));
+
+            game.bodyFont.getData().setScale(levelPrevBodyScaleX, levelPrevBodyScaleY);
 
             batch.setColor(Color.WHITE);
         }
@@ -1386,7 +1493,13 @@ public class GameScreen implements Screen {
         }
 
 
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) returnToMenu();
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (isGameActive && isRoundActive) {
+                isOptionsOpen = true;
+            } else {
+                returnToMenu();
+            }
+        }
     }
 
     private void handleMouseInput(float mouseX, float mouseY) {
@@ -1394,13 +1507,19 @@ public class GameScreen implements Screen {
             float refMouseX = toRefX(mouseX);
             float refMouseY = toRefY(mouseY);
             if (isMatchEndOpen) {
-                if (matchEndPlayAgainBounds.contains(refMouseX, refMouseY)) {
+                if (matchEndRestartBounds.contains(refMouseX, refMouseY)) {
+                    game.playButtonSfx();
+                    isMatchEndOpen = false;
+                    resetGame();
+                    return;
+                }
+                if (matchEndChangeLevelBounds.contains(refMouseX, refMouseY)) {
                     game.playButtonSfx();
                     isMatchEndOpen = false;
                     isLevelSelectOpen = true;
                     return;
                 }
-                if (matchEndHomeBounds.contains(refMouseX, refMouseY)) {
+                if (matchEndExitBounds.contains(refMouseX, refMouseY)) {
                     game.playButtonSfx();
                     isMatchEndOpen = false;
                     returnToMenu();
@@ -1454,6 +1573,11 @@ public class GameScreen implements Screen {
                 return;
             }
             if (isOptionsOpen) {
+                if (optionsContinueBounds.contains(refMouseX, refMouseY)) {
+                    game.playButtonSfx();
+                    isOptionsOpen = false;
+                    return;
+                }
                 if (optionsRestartBounds.contains(refMouseX, refMouseY)) {
                     game.playButtonSfx();
                     isOptionsOpen = false;
@@ -1462,15 +1586,6 @@ public class GameScreen implements Screen {
                     showRoundOutcome = false;
                     roundOutcomeText = null;
                     resetGame();
-                    return;
-                }
-                if (optionsChangeLevelBounds.contains(refMouseX, refMouseY)) {
-                    game.playButtonSfx();
-                    isOptionsOpen = false;
-                    isQuitConfirmOpen = false;
-                    isPowerupPanelOpen = false;
-                    isMatchEndOpen = false;
-                    isLevelSelectOpen = true;
                     return;
                 }
                 if (optionsHomeBounds.contains(refMouseX, refMouseY)) {
@@ -1525,7 +1640,7 @@ public class GameScreen implements Screen {
         playerForesightActive = false;
         game.playCardSfx();
 
-        //INSERTION SORT PALDO DIBA
+        //...existing code...
         insertionSort(playerCards, playerSortedCards);
 
 
@@ -1645,17 +1760,22 @@ public class GameScreen implements Screen {
     private void passTurn() {
         if (!isRoundActive || !isGameActive) return;
 
-
+        playerPassed = true;
         gameMessage = "You passed.";
-        scheduleAITurn(2);
+
+        if (playerPassed && aiPassed) {
+            // Both have passed, play button sfx and delay before ending round
+            game.playButtonSfx();
+            isAITurnPending = true;
+            aiTurnDelayRemaining = 1.5f;
+            isRoundActive = false;
+        } else {
+            scheduleAITurn(2);
+        }
     }
 
     private void checkRoundEnd() {
-
-        boolean playerBust = playerScore > playerTarget;
-        boolean aiBust = aiScore > aiTarget;
-
-        if (playerBust || aiBust || deck.isEmpty()) {
+        if ((playerPassed && aiPassed) || deck.isEmpty()) {
             isRoundActive = false;
             endRound();
         }
@@ -1668,23 +1788,44 @@ public class GameScreen implements Screen {
 
         storeUnusedRoundPowerups();
 
-        int playerDiff = Math.abs(playerTarget - playerScore);
-        int aiDiff = Math.abs(aiTarget - aiScore);
-        boolean isDraw = playerScore == aiScore || playerDiff == aiDiff;
+        boolean playerBust = playerScore > playerTarget;
+        boolean aiBust = aiScore > aiTarget;
+
+        boolean isDraw = false;
+        boolean playerWins = false;
+
+        if (!playerBust && !aiBust) {
+            int playerDiff = playerTarget - playerScore;
+            int aiDiff = aiTarget - aiScore;
+            if (playerDiff == aiDiff) {
+                isDraw = true;
+            } else if (playerDiff < aiDiff) {
+                playerWins = true;
+            }
+        } else if (playerBust && aiBust) {
+            int playerDiff = playerScore - playerTarget;
+            int aiDiff = aiScore - aiTarget;
+            if (playerDiff == aiDiff) {
+                isDraw = true;
+            } else if (playerDiff < aiDiff) {
+                playerWins = true;
+            }
+        } else if (!playerBust && aiBust) {
+            playerWins = true;
+        }
 
         if (isDraw) {
             resultMessage = "Draw! No lives lost.";
-        } else if (playerDiff < aiDiff) {
+        } else if (playerWins) {
             damageAI();
-            playerWins++;
+            this.playerWins++;
             resultMessage = "You win! AI loses a life.";
         } else {
             damagePlayer();
-            aiWins++;
+            this.aiWins++;
             resultMessage = "AI wins! You lose a life.";
         }
 
-        // Add card info to message
         resultMessage += " Cards: You [" + formatCards(playerSortedCards) + "] vs AI [" + formatCards(aiSortedCards) + "]";
         gameMessage = resultMessage + " Press SPACE for next round.";
 
@@ -1697,7 +1838,7 @@ public class GameScreen implements Screen {
             showRoundOutcome = true;
             roundOutcomeDraw = false;
             roundOutcomeWin = false;
-            roundOutcomeText = "-1HP you loss";
+            roundOutcomeText = "-1HP you lost.";
         } else if (aiLives < prevAiLives) {
             showRoundOutcome = true;
             roundOutcomeDraw = false;
@@ -1709,14 +1850,27 @@ public class GameScreen implements Screen {
             roundOutcomeText = null;
         }
 
-        // Check for game over
         if (playerLives <= 0 || aiLives <= 0) {
             endGame();
         }
     }
 
     private void updateAITurn(float delta) {
-        if (!isGameActive || !isRoundActive) return;
+        if (!isGameActive) return;
+
+        // Handle delayed round end when both players pass
+        if (!isRoundActive && isAITurnPending && playerPassed && aiPassed) {
+            if (aiTurnDelayRemaining > 0f) {
+                aiTurnDelayRemaining -= delta;
+                if (aiTurnDelayRemaining <= 0f) {
+                    isAITurnPending = false;
+                    endRound();
+                }
+            }
+            return;
+        }
+
+        if (!isRoundActive) return;
         if (!isAITurnPending) return;
         if (currentAIVoice != null && currentAIVoice.isPlaying()) return;
         if (aiTurnDelayRemaining > 0f) {
@@ -1727,11 +1881,16 @@ public class GameScreen implements Screen {
         stopCurrentAIVoice();
         isAITurnPending = false;
         turnLabel = "YOUR TURN";
+
         if (aiPostAction == 1) {
-            checkRoundEnd();
+            // AI drew a card, check if they busted
+            if (aiScore > aiTarget) {
+                // Auto-pass silently without announcement, but don't end round yet
+                // Let the player have a chance to act
+                aiPassed = true;
+            }
         } else if (aiPostAction == 2) {
-            isRoundActive = false;
-            endRound();
+            aiPassed = true;
         }
         aiPostAction = 0;
     }
@@ -1887,6 +2046,14 @@ public class GameScreen implements Screen {
             powerupPanelBg.dispose();
             powerupPanelBg = null;
         }
+        if (optionsPanelTexture != null) {
+            optionsPanelTexture.dispose();
+            optionsPanelTexture = null;
+        }
+        for (Texture icon : powerupIcons.values()) {
+            if (icon != null) icon.dispose();
+        }
+        powerupIcons.clear();
         disposeMusic(aiDrawVoicesEasy);
         disposeMusic(aiPassVoicesEasy);
         disposeMusic(aiDrawVoicesMedium);
@@ -1925,7 +2092,7 @@ public class GameScreen implements Screen {
     private String getPlayerPowerupInfoText() {
         if (playerForesightActive) {
             if (deck != null && deck.size > 0) {
-                return "Next: " + deck.peek();
+                return "Next " + deck.peek();
             }
             return "-";
         }

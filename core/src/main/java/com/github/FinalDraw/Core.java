@@ -88,19 +88,20 @@ public class Core extends Game {
 
     private void loadAudio() {
         try {
-            menuMusic = Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/Music/menumusic1 (Seal Core Jazz).mp3"));
+            menuMusic = Gdx.audio.newMusic(Gdx.files.internal("Audio/Music/menumusic1 (Seal Core Jazz).mp3"));
             gameMusic = new Music[] {
-                Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/Music/music1 (silent_v0_0id).mp3")),
-                Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/Music/music2 (FRAGMENTED_CONVERGENCE).mp3")),
-                Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/Music/music3 (Breeze).mp3")),
-                Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/Music/music4 (for the defeated).mp3")),
-                Gdx.audio.newMusic(Gdx.files.internal("Audio/Voice/Music/music5 (Finale Of The Unyielding).mp3"))
+                Gdx.audio.newMusic(Gdx.files.internal("Audio/Music/music1 (silent_v0_0id).mp3")),
+                Gdx.audio.newMusic(Gdx.files.internal("Audio/Music/music2 (FRAGMENTED_CONVERGENCE).mp3")),
+                Gdx.audio.newMusic(Gdx.files.internal("Audio/Music/music3 (Breeze).mp3")),
+                Gdx.audio.newMusic(Gdx.files.internal("Audio/Music/music4 (for the defeated).mp3")),
+                Gdx.audio.newMusic(Gdx.files.internal("Audio/Music/music5 (Finale Of The Unyielding).mp3"))
             };
 
-            giveCard1Sfx = Gdx.audio.newSound(Gdx.files.internal("Audio/Voice/SFX/GiveCard1.mp3"));
-            giveCard2Sfx = Gdx.audio.newSound(Gdx.files.internal("Audio/Voice/SFX/GiveCard2.mp3"));
-            givePowerupSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/Voice/SFX/GivePowerup.mp3"));
-            buttonSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/Voice/SFX/HoverButtonMenu.mp3"));
+            giveCard1Sfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/GiveCard1.mp3"));
+            giveCard2Sfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/GiveCard2.mp3"));
+            givePowerupSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/GivePowerup.mp3"));
+            buttonSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/HoverButtonMenu.mp3"));
+            Gdx.app.log("Audio", "Loaded all Audios");
         } catch (Exception e) {
             Gdx.app.error("Core", "Error loading audio", e);
         }
@@ -161,7 +162,7 @@ public class Core extends Game {
 
     public void startGameplayMusic() {
         if (gameMusic == null || gameMusic.length == 0) return;
-        gameplayMusicIndex = 0;
+        gameplayMusicIndex = (int) (Math.random() * gameMusic.length);
         playGameplayTrack(gameplayMusicIndex);
     }
 

@@ -30,6 +30,7 @@ public class MenuScreen implements Screen {
     private static final float TEXT_SPACING = 60;
 
     private Texture solidPixel;
+    private Texture difficultyPanelTexture;
     private boolean isLevelSelectOpen;
     private Rectangle levelPanelBounds;
     private Rectangle easyBounds;
@@ -50,6 +51,13 @@ public class MenuScreen implements Screen {
         pixmap.fill();
         solidPixel = new Texture(pixmap);
         pixmap.dispose();
+
+        // Load difficulty panel texture
+        if (Gdx.files.internal("Panels/diffpanel.png").exists()) {
+            difficultyPanelTexture = new Texture(Gdx.files.internal("Panels/diffpanel.png"));
+        } else {
+            difficultyPanelTexture = null;
+        }
 
         // Initialize fade-in effect
         fadeTimer = 0f;
@@ -77,9 +85,9 @@ public class MenuScreen implements Screen {
         float w = Gdx.graphics.getWidth();
         float h = Gdx.graphics.getHeight();
         levelPanelBounds = new Rectangle(w / 2f - 220f, h / 2f - 140f, 440f, 280f);
-        easyBounds = new Rectangle(levelPanelBounds.x + 60f, levelPanelBounds.y + 180f, 320f, 45f);
-        mediumBounds = new Rectangle(levelPanelBounds.x + 60f, levelPanelBounds.y + 120f, 320f, 45f);
-        hardBounds = new Rectangle(levelPanelBounds.x + 60f, levelPanelBounds.y + 60f, 320f, 45f);
+        easyBounds = new Rectangle(levelPanelBounds.x + 100f, levelPanelBounds.y + 170f, 240f, 30f);
+        mediumBounds = new Rectangle(levelPanelBounds.x + 100f, levelPanelBounds.y + 105f, 240f, 30f);
+        hardBounds = new Rectangle(levelPanelBounds.x + 100f, levelPanelBounds.y + 40f, 240f, 30f);
     }
 
     @Override
@@ -137,21 +145,19 @@ public class MenuScreen implements Screen {
         if (isLevelSelectOpen && solidPixel != null) {
             batch.setColor(0f, 0f, 0f, 0.5f * alpha);
             batch.draw(solidPixel, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-            batch.setColor(0.12f, 0.12f, 0.12f, 0.95f * alpha);
-            batch.draw(solidPixel, levelPanelBounds.x, levelPanelBounds.y, levelPanelBounds.width, levelPanelBounds.height);
+            batch.setColor(Color.WHITE);
 
-            game.titleFont.setColor(1f, 1f, 1f, alpha);
-            String title = "SELECT LEVEL";
-            layout.setText(game.titleFont, title);
-            game.titleFont.draw(batch, title, levelPanelBounds.x + levelPanelBounds.width / 2f - layout.width / 2f, levelPanelBounds.y + levelPanelBounds.height - 20f);
+            // Draw difficulty panel texture
+            if (difficultyPanelTexture != null) {
+                batch.draw(difficultyPanelTexture, levelPanelBounds.x, levelPanelBounds.y, levelPanelBounds.width, levelPanelBounds.height);
+            }
 
-            game.bodyFont.setColor(1f, 1f, 1f, alpha);
-            layout.setText(game.bodyFont, "Easy");
-            game.bodyFont.draw(batch, "Easy", easyBounds.x, easyBounds.y + 32f);
-            layout.setText(game.bodyFont, "Medium");
-            game.bodyFont.draw(batch, "Medium", mediumBounds.x, mediumBounds.y + 32f);
-            layout.setText(game.bodyFont, "Hard");
-            game.bodyFont.draw(batch, "Hard", hardBounds.x, hardBounds.y + 32f);
+            // Draw debug rectangles for button click areas (optional, can be removed)
+            batch.setColor(1f, 0f, 0f, 0.2f);
+            batch.draw(solidPixel, easyBounds.x, easyBounds.y, easyBounds.width, easyBounds.height);
+            batch.draw(solidPixel, mediumBounds.x, mediumBounds.y, mediumBounds.width, mediumBounds.height);
+            batch.draw(solidPixel, hardBounds.x, hardBounds.y, hardBounds.width, hardBounds.height);
+            batch.setColor(Color.WHITE);
         }
 
         // Reset batch color
@@ -235,6 +241,10 @@ public class MenuScreen implements Screen {
         if (solidPixel != null) {
             solidPixel.dispose();
             solidPixel = null;
+        }
+        if (difficultyPanelTexture != null) {
+            difficultyPanelTexture.dispose();
+            difficultyPanelTexture = null;
         }
 
     }
