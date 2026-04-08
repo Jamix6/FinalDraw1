@@ -250,7 +250,8 @@ public class GameScreen implements Screen {
                 break;
             case 2:
                 difficultyName = "Hard";
-                playerLives = 3;
+                maxPlayerLives = 1;
+                playerLives = maxPlayerLives;
                 aiLives = maxAILives;
                 break;
             case 1:

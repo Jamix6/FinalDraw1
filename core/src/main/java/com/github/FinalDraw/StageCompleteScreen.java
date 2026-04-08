@@ -117,7 +117,7 @@ public class StageCompleteScreen implements Screen {
             }
         } else {
             if (difficulty == 2) {
-                message = "Hard difficulty: Progression reset.";
+                message = "Hard difficulty: 1 life only. Progression reset on loss.";
             } else if (difficulty == 1) { // Medium difficulty
                 int livesLeft = game.getMediumLives();
                 if (livesLeft > 0) {
