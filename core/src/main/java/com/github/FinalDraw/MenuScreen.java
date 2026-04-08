@@ -23,7 +23,7 @@ public class MenuScreen implements Screen {
     private static final float FADE_IN_DURATION = 1.0f;
 
     // Menu items
-    private static final String[] MENU_ITEMS = {"Play", "Instructions", "Settings", "Exit"};
+    private static final String[] MENU_ITEMS = {"Play", "Instructions", "Settings", "Character Select", "Exit"};
     private Rectangle[] menuBounds;
 
     private static final float LEFT_MARGIN = 50;
@@ -126,8 +126,14 @@ public class MenuScreen implements Screen {
         // Draw menu items with hover effects
         for (int i = 0; i < MENU_ITEMS.length; i++) {
             boolean isHovered = menuBounds[i].contains(mouseX, mouseY);
-
-            if (isHovered) {
+            boolean isEnabled = true;
+            
+            // Check if "Play" button should be disabled (index 0 is "Play")
+            if (i == 0) { // "Play" button
+                isEnabled = game.getCurrentProfile() != null;
+            }
+            
+            if (isEnabled && isHovered) {
                 // Draw drop shadow for hovered text (offset by 2 pixels)
                 game.menuFont.setColor(0, 0, 0, 0.7f * alpha);
                 game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN + 2, menuBounds[i].y + menuBounds[i].height - 2);
@@ -135,9 +141,13 @@ public class MenuScreen implements Screen {
                 // Draw yellow text on top
                 game.menuFont.setColor(1f, 1f, 0f, alpha); // Yellow with fade
                 game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
-            } else {
-                // Draw normal white text
+            } else if (isEnabled) {
+                // Draw normal white text for enabled items
                 game.menuFont.setColor(1f, 1f, 1f, alpha); // White with fade
+                game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
+            } else {
+                // Draw disabled (grayed out) text
+                game.menuFont.setColor(0.5f, 0.5f, 0.5f, alpha); // Gray with fade
                 game.menuFont.draw(batch, MENU_ITEMS[i], LEFT_MARGIN, menuBounds[i].y + menuBounds[i].height);
             }
         }
@@ -175,21 +185,21 @@ public class MenuScreen implements Screen {
                     game.playButtonSfx();
                     game.difficulty = 0;
                     isLevelSelectOpen = false;
-                    game.setScreen(new GameScreen(game));
+                    game.setScreen(new StageSelectScreen(game));
                     return;
                 }
                 if (mediumBounds.contains(mouseX, mouseY)) {
                     game.playButtonSfx();
                     game.difficulty = 1;
                     isLevelSelectOpen = false;
-                    game.setScreen(new GameScreen(game));
+                    game.setScreen(new StageSelectScreen(game));
                     return;
                 }
                 if (hardBounds.contains(mouseX, mouseY)) {
                     game.playButtonSfx();
                     game.difficulty = 2;
                     isLevelSelectOpen = false;
-                    game.setScreen(new GameScreen(game));
+                    game.setScreen(new StageSelectScreen(game));
                     return;
                 }
                 if (!levelPanelBounds.contains(mouseX, mouseY)) {
@@ -200,8 +210,16 @@ public class MenuScreen implements Screen {
 
             for (int i = 0; i < MENU_ITEMS.length; i++) {
                 if (menuBounds[i].contains(mouseX, mouseY)) {
-                    game.playButtonSfx();
-                    handleMenuClick(i);
+                    // Check if "Play" button is enabled
+                    boolean isEnabled = true;
+                    if (i == 0) { // "Play" button
+                        isEnabled = game.getCurrentProfile() != null;
+                    }
+                    
+                    if (isEnabled) {
+                        game.playButtonSfx();
+                        handleMenuClick(i);
+                    }
                     break;
                 }
             }
@@ -213,7 +231,8 @@ public class MenuScreen implements Screen {
             case 0: isLevelSelectOpen = true; break;
             case 1: game.setScreen(new Instructions(game)); break;
             case 2: game.setScreen(new SettingsScreen(game)); break;
-            case 3: Gdx.app.exit(); break;
+            case 3: game.setScreen(new CharacterSelectScreen(game)); break;
+            case 4: Gdx.app.exit(); break;
         }
     }
 

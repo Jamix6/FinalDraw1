@@ -26,11 +26,16 @@ public class Core extends Game {
     public BitmapFont titleFont;
     public BitmapFont bodyFont;
     public int difficulty = 1;
+    public static final int MAX_STAGES = 5;
+    public static final int MAX_PROFILES = 10;
+    public static final int MAX_NAME_LENGTH = 12;
+    public static final int MIN_NAME_LENGTH = 1;
 
     private Preferences prefs;
     private float musicVolume;
     private float sfxVolume;
     private float voiceVolume;
+    private int currentProfileSlot = -1; // -1 means no profile selected
 
     private Music menuMusic;
     private Music[] gameMusic;
@@ -144,6 +149,300 @@ public class Core extends Game {
             prefs.putFloat("voiceVolume", voiceVolume);
             prefs.flush();
         }
+    }
+
+    // Legacy stage progression methods (kept for backward compatibility during migration)
+    // These will be removed after migration is complete
+    private int getLegacyUnlockedStage() {
+        if (prefs == null) {
+            prefs = Gdx.app.getPreferences("FinalDrawSettings");
+        }
+        return prefs.getInteger("unlockedStage", 1);
+    }
+
+    private void setLegacyUnlockedStage(int stage) {
+        if (prefs == null) {
+            prefs = Gdx.app.getPreferences("FinalDrawSettings");
+        }
+        stage = Math.max(1, Math.min(stage, MAX_STAGES));
+        prefs.putInteger("unlockedStage", stage);
+        prefs.flush();
+    }
+
+    private void completeLegacyStage(int stage) {
+        if (prefs == null) {
+            prefs = Gdx.app.getPreferences("FinalDrawSettings");
+        }
+        int currentUnlocked = getLegacyUnlockedStage();
+        if (stage >= currentUnlocked && stage < MAX_STAGES) {
+            setLegacyUnlockedStage(stage + 1);
+        }
+    }
+
+    public void resetProgression() {
+        // Reset current profile's progression for all difficulties
+        SaveProfile profile = getCurrentProfile();
+        if (profile != null) {
+            profile.easyUnlocked = 1;
+            profile.mediumUnlocked = 1;
+            profile.hardUnlocked = 1;
+            saveProfile(profile);
+        }
+    }
+
+    // ============================================
+    // NEW: Profile Management System
+    // ============================================
+
+    public static class SaveProfile {
+        public int slot;
+        public String name;
+        public String createdDate;
+        public String lastPlayedDate;
+        public long playTimeMinutes;
+        public int easyUnlocked;
+        public int mediumUnlocked;
+        public int hardUnlocked;
+        
+        public SaveProfile(int slot) {
+            this.slot = slot;
+            this.name = "";
+            this.createdDate = "";
+            this.lastPlayedDate = "";
+            this.playTimeMinutes = 0;
+            this.easyUnlocked = 1;
+            this.mediumUnlocked = 1;
+            this.hardUnlocked = 1;
+        }
+        
+        public boolean exists() {
+            return name != null && !name.isEmpty();
+        }
+        
+        public int getUnlockedStage(int difficulty) {
+            switch (difficulty) {
+                case 0: return easyUnlocked;
+                case 1: return mediumUnlocked;
+                case 2: return hardUnlocked;
+                default: return 1;
+            }
+        }
+        
+        public void setUnlockedStage(int difficulty, int stage) {
+            stage = Math.max(1, Math.min(stage, MAX_STAGES));
+            switch (difficulty) {
+                case 0: easyUnlocked = stage; break;
+                case 1: mediumUnlocked = stage; break;
+                case 2: hardUnlocked = stage; break;
+            }
+        }
+        
+        public void completeStage(int difficulty, int stage) {
+            int current = getUnlockedStage(difficulty);
+            if (stage >= current && stage < MAX_STAGES) {
+                setUnlockedStage(difficulty, stage + 1);
+            }
+        }
+        
+        public String getFormattedPlayTime() {
+            long hours = playTimeMinutes / 60;
+            long minutes = playTimeMinutes % 60;
+            if (hours > 0) {
+                return String.format("%dh %dm", hours, minutes);
+            } else {
+                return String.format("%dm", minutes);
+            }
+        }
+        
+        public String getFormattedLastPlayed() {
+            if (lastPlayedDate == null || lastPlayedDate.isEmpty()) {
+                return "Never";
+            }
+            try {
+                // Simple formatting: just show date part
+                if (lastPlayedDate.length() >= 10) {
+                    return lastPlayedDate.substring(0, 10);
+                }
+                return lastPlayedDate;
+            } catch (Exception e) {
+                return "Unknown";
+            }
+        }
+        
+        public String getDifficultySummary() {
+            return String.format("Easy: %d, Medium: %d, Hard: %d", 
+                easyUnlocked, mediumUnlocked, hardUnlocked);
+        }
+    }
+
+    // Profile management methods
+    public int getCurrentProfileSlot() {
+        return currentProfileSlot;
+    }
+    
+    public void setCurrentProfileSlot(int slot) {
+        if (slot >= 1 && slot <= MAX_PROFILES) {
+            currentProfileSlot = slot;
+            // Update last played date
+            SaveProfile profile = loadProfile(slot);
+            if (profile != null && profile.exists()) {
+                profile.lastPlayedDate = getCurrentTimestamp();
+                saveProfile(profile);
+            }
+        }
+    }
+    
+    public SaveProfile getCurrentProfile() {
+        if (currentProfileSlot <= 0 || currentProfileSlot > MAX_PROFILES) {
+            return null;
+        }
+        return loadProfile(currentProfileSlot);
+    }
+    
+    public SaveProfile loadProfile(int slot) {
+        if (slot < 1 || slot > MAX_PROFILES) return null;
+        
+        SaveProfile profile = new SaveProfile(slot);
+        String prefix = "profile" + slot + "_";
+        
+        profile.name = prefs.getString(prefix + "name", "");
+        profile.createdDate = prefs.getString(prefix + "created", "");
+        profile.lastPlayedDate = prefs.getString(prefix + "lastPlayed", "");
+        profile.playTimeMinutes = prefs.getLong(prefix + "playTime", 0);
+        profile.easyUnlocked = prefs.getInteger(prefix + "easyUnlocked", 1);
+        profile.mediumUnlocked = prefs.getInteger(prefix + "mediumUnlocked", 1);
+        profile.hardUnlocked = prefs.getInteger(prefix + "hardUnlocked", 1);
+        
+        return profile;
+    }
+    
+    public void saveProfile(SaveProfile profile) {
+        if (profile == null || profile.slot < 1 || profile.slot > MAX_PROFILES) return;
+        
+        String prefix = "profile" + profile.slot + "_";
+        
+        prefs.putString(prefix + "name", profile.name);
+        prefs.putString(prefix + "created", profile.createdDate);
+        prefs.putString(prefix + "lastPlayed", profile.lastPlayedDate);
+        prefs.putLong(prefix + "playTime", profile.playTimeMinutes);
+        prefs.putInteger(prefix + "easyUnlocked", profile.easyUnlocked);
+        prefs.putInteger(prefix + "mediumUnlocked", profile.mediumUnlocked);
+        prefs.putInteger(prefix + "hardUnlocked", profile.hardUnlocked);
+        prefs.putBoolean(prefix + "exists", profile.exists());
+        
+        prefs.flush();
+    }
+    
+    public SaveProfile createProfile(int slot, String name) {
+        if (slot < 1 || slot > MAX_PROFILES) return null;
+        if (name == null || name.trim().isEmpty()) return null;
+        if (name.length() < MIN_NAME_LENGTH || name.length() > MAX_NAME_LENGTH) return null;
+        
+        SaveProfile profile = new SaveProfile(slot);
+        profile.name = name.trim();
+        profile.createdDate = getCurrentTimestamp();
+        profile.lastPlayedDate = profile.createdDate;
+        
+        // Check for legacy migration
+        migrateLegacyProgression(profile);
+        
+        saveProfile(profile);
+        return profile;
+    }
+    
+    public boolean deleteProfile(int slot) {
+        if (slot < 1 || slot > MAX_PROFILES) return false;
+        
+        String prefix = "profile" + slot + "_";
+        prefs.remove(prefix + "name");
+        prefs.remove(prefix + "created");
+        prefs.remove(prefix + "lastPlayed");
+        prefs.remove(prefix + "playTime");
+        prefs.remove(prefix + "easyUnlocked");
+        prefs.remove(prefix + "mediumUnlocked");
+        prefs.remove(prefix + "hardUnlocked");
+        prefs.remove(prefix + "exists");
+        
+        prefs.flush();
+        
+        if (currentProfileSlot == slot) {
+            currentProfileSlot = -1;
+        }
+        
+        return true;
+    }
+    
+    public Array<SaveProfile> getAllProfiles() {
+        Array<SaveProfile> profiles = new Array<>();
+        for (int i = 1; i <= MAX_PROFILES; i++) {
+            SaveProfile profile = loadProfile(i);
+            profiles.add(profile);
+        }
+        return profiles;
+    }
+    
+    private void migrateLegacyProgression(SaveProfile profile) {
+        // Check if there's old progression data to migrate
+        if (prefs.contains("unlockedStage")) {
+            int legacyStage = prefs.getInteger("unlockedStage", 1);
+            // Apply to all difficulties
+            profile.easyUnlocked = legacyStage;
+            profile.mediumUnlocked = legacyStage;
+            profile.hardUnlocked = legacyStage;
+            
+            // Clear old data
+            prefs.remove("unlockedStage");
+            prefs.flush();
+            
+            Gdx.app.log("Core", "Migrated legacy progression stage " + legacyStage + " to profile " + profile.slot);
+        }
+    }
+    
+    private String getCurrentTimestamp() {
+        // Simple ISO-like timestamp
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        return sdf.format(new java.util.Date());
+    }
+    
+    // Difficulty-specific progression methods (for current profile)
+    public int getUnlockedStage(int difficulty) {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return 1;
+        return profile.getUnlockedStage(difficulty);
+    }
+    
+    public void setUnlockedStage(int difficulty, int stage) {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return;
+        profile.setUnlockedStage(difficulty, stage);
+        saveProfile(profile);
+    }
+    
+    public void completeStage(int difficulty, int stage) {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return;
+        profile.completeStage(difficulty, stage);
+        saveProfile(profile);
+    }
+    
+    public void updatePlayTime(long minutes) {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return;
+        profile.playTimeMinutes += minutes;
+        saveProfile(profile);
+    }
+    
+    // Backward compatibility wrapper (uses current profile's medium difficulty)
+    public int getUnlockedStage() {
+        return getUnlockedStage(1); // Default to medium
+    }
+    
+    public void setUnlockedStage(int stage) {
+        setUnlockedStage(1, stage); // Default to medium
+    }
+    
+    public void completeStage(int stage) {
+        completeStage(1, stage); // Default to medium
     }
 
     public void playMenuMusic() {

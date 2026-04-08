@@ -182,6 +182,12 @@ public class GameScreen implements Screen {
 
     // Diff info
     private String difficultyName;
+    private int currentStage;
+    
+    // Play time tracking
+    private float playTimeAccumulator; // seconds
+    private static final float PLAY_TIME_UPDATE_INTERVAL = 60f; // Update every minute
+    private float playTimeUpdateTimer;
 
     // Powerups INfoo
     private Array<PowerupType> playerRoundPowerups = new Array<>();
@@ -198,7 +204,12 @@ public class GameScreen implements Screen {
     private Array<PowerupType> aiActiveDebuffs = new Array<>();
 
     public GameScreen(Core game) {
+        this(game, 1); // Default to stage 1 for backward compatibility
+    }
+
+    public GameScreen(Core game, int stage) {
         this.game = game;
+        this.currentStage = stage;
 
         // setup diff
         setupDifficulty();
@@ -217,7 +228,7 @@ public class GameScreen implements Screen {
         this.aiSortedCards = new Array<>();
         this.aiPowerupNotifications = new Array<>();
 
-        this.gameMessage = "Round 1 - Draw a card or pass!";
+        this.gameMessage = "Stage " + stage + " - Round 1 - Draw a card or pass!";
 
 
         initializeDeck();
@@ -415,12 +426,20 @@ public class GameScreen implements Screen {
         powerupPanelBounds = new Rectangle(40f, 170f, 560f, 440f);
 
         optionsButtonBounds = new Rectangle(1120f, 665f, 130f, 40f);
-        optionsPanelBounds = new Rectangle(880f, 470f, 340f, 210f);
-        // Centered options buttons: Continue, Restart, Home (middle of screen)
-        float optionsPanelCenterX = (REF_W - 300f) / 2f; // 300 is button width
-        optionsContinueBounds = new Rectangle(optionsPanelCenterX, 530f, 300f, 40f);
-        optionsRestartBounds = new Rectangle(optionsPanelCenterX, 480f, 300f, 40f);
-        optionsHomeBounds = new Rectangle(optionsPanelCenterX, 380f, 300f, 40f);
+        // Options panel is centered in render(), so buttons should be centered too
+        float panelWidth = 500f;
+        float panelHeight = 300f;
+        float panelX = (REF_W - panelWidth) / 2f;
+        float panelY = (REF_H - panelHeight) / 2f;
+        optionsPanelBounds = new Rectangle(panelX, panelY, panelWidth, panelHeight);
+        
+        // Centered options buttons within the panel
+        float buttonWidth = 300f;
+        float buttonHeight = 40f;
+        float buttonX = panelX + (panelWidth - buttonWidth) / 2f;
+        optionsContinueBounds = new Rectangle(buttonX, panelY + 180f, buttonWidth, buttonHeight);
+        optionsRestartBounds = new Rectangle(buttonX, panelY + 120f, buttonWidth, buttonHeight);
+        optionsHomeBounds = new Rectangle(buttonX, panelY + 60f, buttonWidth, buttonHeight);
 
         quitConfirmPanelBounds = new Rectangle(420f, 265f, 440f, 190f);
         quitYesBounds = new Rectangle(465f, 290f, 170f, 50f);
@@ -997,6 +1016,20 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        // Update play time tracking
+        if (isGameActive) {
+            playTimeAccumulator += delta;
+            playTimeUpdateTimer += delta;
+            
+            // Update saved play time every minute
+            if (playTimeUpdateTimer >= PLAY_TIME_UPDATE_INTERVAL) {
+                long minutesToAdd = (long) (playTimeUpdateTimer / 60f);
+                if (minutesToAdd > 0) {
+                    game.updatePlayTime(minutesToAdd);
+                }
+                playTimeUpdateTimer = 0f;
+            }
+        }
 
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -1942,13 +1975,15 @@ public class GameScreen implements Screen {
     private void endGame() {
         isGameActive = false;
         isRoundActive = false;
-        isMatchEndOpen = true;
-        isOptionsOpen = false;
-        isQuitConfirmOpen = false;
-        isPowerupPanelOpen = false;
-        isLevelSelectOpen = false;
-
-        matchWon = playerLives > 0;
+        
+        // Navigate to StageCompleteScreen instead of showing match end panel
+        boolean playerWon = playerLives > 0;
+        game.setScreen(new StageCompleteScreen(game, currentStage, playerWon));
+        
+        // If player won, complete the stage for current difficulty
+        if (playerWon) {
+            game.completeStage(game.difficulty, currentStage);
+        }
     }
 
     private void returnToMenu() {
