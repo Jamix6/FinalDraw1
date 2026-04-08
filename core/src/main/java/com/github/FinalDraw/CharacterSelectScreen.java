@@ -53,11 +53,11 @@ public class CharacterSelectScreen implements Screen {
     // Text colours
     private static final Color GOLD         = new Color(0.96f, 0.78f, 0.26f, 1.00f);
     private static final Color GOLD_DIM     = new Color(0.96f, 0.78f, 0.26f, 0.55f);
-    private static final Color META_COLOR   = new Color(1.00f, 1.00f, 1.00f, 0.40f);
-    private static final Color LABEL_COLOR  = new Color(1.00f, 1.00f, 1.00f, 0.22f);
-    private static final Color EMPTY_LABEL  = new Color(1.00f, 1.00f, 1.00f, 0.18f);
-    private static final Color EMPTY_HINT   = new Color(1.00f, 1.00f, 1.00f, 0.12f);
-    private static final Color SLOT_NUM_COL = new Color(1.00f, 1.00f, 1.00f, 0.18f);
+    private static final Color META_COLOR   = new Color(1.00f, 1.00f, 1.00f, 0.85f);
+    private static final Color LABEL_COLOR  = new Color(1.00f, 1.00f, 1.00f, 0.75f);
+    private static final Color EMPTY_LABEL  = new Color(1.00f, 1.00f, 1.00f, 0.35f);
+    private static final Color EMPTY_HINT   = new Color(1.00f, 1.00f, 1.00f, 0.28f);
+    private static final Color SLOT_NUM_COL = new Color(1.00f, 1.00f, 1.00f, 0.40f);
 
     // Button colours
     private static final Color BTN_BACK_COL      = new Color(1.00f, 1.00f, 1.00f, 0.60f);
@@ -186,10 +186,6 @@ public class CharacterSelectScreen implements Screen {
         // Base dark layer
         batch.setColor(BG_DEEP);
         batch.draw(game.backgroundRectangle, 0, 0, W, H);
-
-        // Subtle warm-red vignette in top-left quadrant
-        batch.setColor(0.18f, 0.01f, 0.00f, 0.55f);
-        batch.draw(game.backgroundRectangle, 0, H * 0.4f, W * 0.55f, H * 0.6f);
 
         // Static background texture (pattern/diamond weave) at very low alpha
         batch.setColor(1f, 1f, 1f, 0.06f);
@@ -387,37 +383,28 @@ public class CharacterSelectScreen implements Screen {
             game.bodyFont.draw(batch, badge, r.x + r.width - pad - layout.width, topY);
         }
 
-        // Character name — centre-left, large + gold
+        // Character name — centre-left, smaller and brighter for contrast
         float nameY = r.y + r.height * 0.58f;
-        game.titleFont.setColor(GOLD);
+        game.bodyFont.setColor(Color.WHITE);
         float maxW       = r.width - 2f * pad;
         String display   = profile.name;
-        layout.setText(game.titleFont, display);
+        layout.setText(game.bodyFont, display);
         if (layout.width > maxW) {
             for (int k = display.length() - 1; k > 0; k--) {
                 display = profile.name.substring(0, k) + "…";
-                layout.setText(game.titleFont, display);
+                layout.setText(game.bodyFont, display);
                 if (layout.width <= maxW) break;
             }
         }
-        game.titleFont.draw(batch, display, r.x + pad, nameY);
+        game.bodyFont.draw(batch, display, r.x + pad, nameY);
 
-        // Meta row: Last played | Play time
+        // Meta row: Last played only
         float metaY = r.y + pad + 12f;
         game.bodyFont.setColor(LABEL_COLOR);
         game.bodyFont.draw(batch, "Last", r.x + pad, metaY);
         game.bodyFont.setColor(META_COLOR);
         layout.setText(game.bodyFont, "Last");
         game.bodyFont.draw(batch, profile.getFormattedLastPlayed(), r.x + pad + layout.width + 6f, metaY);
-
-        String timeLabel = "Time";
-        layout.setText(game.bodyFont, timeLabel);
-        float timeX = r.x + pad + 130f;
-        game.bodyFont.setColor(LABEL_COLOR);
-        game.bodyFont.draw(batch, timeLabel, timeX, metaY);
-        game.bodyFont.setColor(META_COLOR);
-        layout.setText(game.bodyFont, timeLabel);
-        game.bodyFont.draw(batch, profile.getFormattedPlayTime(), timeX + layout.width + 6f, metaY);
 
         batch.setColor(Color.WHITE);
     }
