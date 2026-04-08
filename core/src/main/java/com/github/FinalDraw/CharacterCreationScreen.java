@@ -22,15 +22,22 @@ public class CharacterCreationScreen implements Screen {
     private Rectangle cancelButtonBounds;
     
     // Name input
-    private StringBuilder nameBuilder;
+    private final StringBuilder nameBuilder;
     private boolean nameValid;
+    private boolean nameInputFocused = true;
     private float cursorBlinkTimer;
     private static final float CURSOR_BLINK_INTERVAL = 0.5f;
     private boolean showCursor;
-    
+
     // Default name suggestion
-    private String defaultName;
-    
+    private final String defaultName;
+
+    // Theme colors
+    private static final Color PANEL_BORDER = new Color(0.96f, 0.78f, 0.26f, 1f);
+    private static final Color INPUT_BG = new Color(0.10f, 0.05f, 0.03f, 1f);
+    private static final Color INPUT_BORDER_ACTIVE = new Color(0.96f, 0.78f, 0.26f, 1f);
+    private static final Color INPUT_BORDER_INACTIVE = new Color(0.40f, 0.18f, 0.08f, 1f);
+
     public CharacterCreationScreen(Core game, int slot) {
         this.game = game;
         this.slot = slot;
@@ -39,7 +46,7 @@ public class CharacterCreationScreen implements Screen {
         this.nameBuilder.append(defaultName);
         validateName();
     }
-    
+
     @Override
     public void show() {
         batch = new SpriteBatch();
@@ -63,7 +70,7 @@ public class CharacterCreationScreen implements Screen {
         );
         
         // Name input field (centered in panel)
-        float inputWidth = 300f;
+        float inputWidth = 380f;
         float inputHeight = 40f;
         nameInputBounds = new Rectangle(
             panelBounds.x + (panelBounds.width - inputWidth) / 2f,
@@ -72,22 +79,20 @@ public class CharacterCreationScreen implements Screen {
         );
         
         // Buttons at bottom of panel
-        float buttonWidth = 120f;
         float buttonHeight = 40f;
-        float buttonSpacing = 30f;
-        float totalButtonsWidth = 2 * buttonWidth + buttonSpacing;
-        float buttonsX = panelBounds.x + (panelBounds.width - totalButtonsWidth) / 2f;
+        float buttonsWidth = 220f;
+        float buttonsX = panelBounds.x + (panelBounds.width - buttonsWidth) / 2f;
         
         createButtonBounds = new Rectangle(
             buttonsX,
             panelBounds.y + 50f,
-            buttonWidth, buttonHeight
+            buttonsWidth / 2f, buttonHeight
         );
         
         cancelButtonBounds = new Rectangle(
-            buttonsX + buttonWidth + buttonSpacing,
+            buttonsX + buttonsWidth / 2f,
             panelBounds.y + 50f,
-            buttonWidth, buttonHeight
+            buttonsWidth / 2f, buttonHeight
         );
     }
     
@@ -115,32 +120,26 @@ public class CharacterCreationScreen implements Screen {
         
         batch.begin();
         
-        // Draw static background with darker overlay
+        // Background pattern + deep red overlay
         batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        // Dark overlay for better readability
-        batch.setColor(0f, 0f, 0f, 0.3f);
-        batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        batch.setColor(0.08f, 0.01f, 0.00f, 0.85f);
+        batch.draw(game.backgroundRectangle, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.setColor(Color.WHITE);
         batch.draw(game.shadow, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         
         // Draw title
-        game.titleFont.setColor(Color.WHITE);
+        game.titleFont.setColor(PANEL_BORDER);
         layout.setText(game.titleFont, "CREATE CHARACTER");
         game.titleFont.draw(batch, "CREATE CHARACTER",
             (Gdx.graphics.getWidth() - layout.width) / 2,
             Gdx.graphics.getHeight() - 50);
         
-        // Draw panel background
-        batch.setColor(0.15f, 0.15f, 0.15f, 0.95f);
-        batch.draw(game.backgroundRectangle, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height);
-        batch.setColor(Color.WHITE);
-        
-        // Draw panel border
-        batch.setColor(Color.YELLOW);
-        batch.draw(game.backgroundRectangle, panelBounds.x, panelBounds.y, panelBounds.width, 2f);
-        batch.draw(game.backgroundRectangle, panelBounds.x, panelBounds.y + panelBounds.height - 2f, panelBounds.width, 2f);
-        batch.draw(game.backgroundRectangle, panelBounds.x, panelBounds.y, 2f, panelBounds.height);
-        batch.draw(game.backgroundRectangle, panelBounds.x + panelBounds.width - 2f, panelBounds.y, 2f, panelBounds.height);
+        // Minimal layout: no panel rectangles, only the background and input field
+        float ornamentY = panelBounds.y + panelBounds.height - 60f;
+        float ornamentWidth = 120f;
+        float ornamentX = panelBounds.x + (panelBounds.width - ornamentWidth) / 2f;
+        batch.setColor(PANEL_BORDER);
+        batch.draw(game.backgroundRectangle, ornamentX, ornamentY, ornamentWidth, 1f);
         batch.setColor(Color.WHITE);
         
         // Draw slot info
@@ -151,21 +150,12 @@ public class CharacterCreationScreen implements Screen {
             panelBounds.x + (panelBounds.width - layout.width) / 2f,
             panelBounds.y + panelBounds.height - 40f);
         
-        // Draw name label
-        game.bodyFont.setColor(Color.WHITE);
-        String nameLabel = "Character Name:";
-        layout.setText(game.bodyFont, nameLabel);
-        game.bodyFont.draw(batch, nameLabel,
-            panelBounds.x + (panelBounds.width - layout.width) / 2f,
-            panelBounds.y + panelBounds.height - 80f);
-        
         // Draw name input field background
-        batch.setColor(0.1f, 0.1f, 0.1f, 1f);
+        batch.setColor(INPUT_BG);
         batch.draw(game.backgroundRectangle, nameInputBounds.x, nameInputBounds.y, nameInputBounds.width, nameInputBounds.height);
-        batch.setColor(Color.WHITE);
         
         // Draw name input field border
-        batch.setColor(nameValid ? Color.GREEN : Color.RED);
+        batch.setColor(nameInputFocused ? INPUT_BORDER_ACTIVE : INPUT_BORDER_INACTIVE);
         batch.draw(game.backgroundRectangle, nameInputBounds.x, nameInputBounds.y, nameInputBounds.width, 2f);
         batch.draw(game.backgroundRectangle, nameInputBounds.x, nameInputBounds.y + nameInputBounds.height - 2f, nameInputBounds.width, 2f);
         batch.draw(game.backgroundRectangle, nameInputBounds.x, nameInputBounds.y, 2f, nameInputBounds.height);
@@ -177,16 +167,14 @@ public class CharacterCreationScreen implements Screen {
         game.bodyFont.setColor(Color.WHITE);
         layout.setText(game.bodyFont, name);
         
-        // Calculate text position (centered in input field)
-        float textX = nameInputBounds.x + 10f;
+        // Center text inside the input field
+        float textX = nameInputBounds.x + (nameInputBounds.width - layout.width) / 2f;
         float textY = nameInputBounds.y + (nameInputBounds.height + layout.height) / 2f;
         
-        // If text is too long, show it with offset
+        // If text is too long, align the end with the right edge of the input box
         float maxTextWidth = nameInputBounds.width - 20f;
         if (layout.width > maxTextWidth) {
-            // Text is too long, we need to show the end of it
-            float overflow = layout.width - maxTextWidth;
-            textX -= overflow;
+            textX = nameInputBounds.x + 10f - (layout.width - maxTextWidth);
         }
         
         game.bodyFont.draw(batch, name, textX, textY);
@@ -214,8 +202,7 @@ public class CharacterCreationScreen implements Screen {
         if (!nameValid) {
             String message;
             if (name.length() < Core.MIN_NAME_LENGTH) {
-                message = "Name must be at least " + Core.MIN_NAME_LENGTH + " character";
-                if (Core.MIN_NAME_LENGTH > 1) message += "s";
+                message = "Name must be at least " + Core.MIN_NAME_LENGTH + " characters";
             } else if (name.length() > Core.MAX_NAME_LENGTH) {
                 message = "Name cannot exceed " + Core.MAX_NAME_LENGTH + " characters";
             } else {
@@ -256,16 +243,22 @@ public class CharacterCreationScreen implements Screen {
                 return;
             }
             
-            // Focus name input field if clicked
+            // Focus name input field if clicked, otherwise unfocus it
             if (nameInputBounds.contains(mouseX, mouseY)) {
-                // Already focused, but we can reset cursor blink
+                nameInputFocused = true;
                 cursorBlinkTimer = 0f;
                 showCursor = true;
+            } else {
+                nameInputFocused = false;
             }
         }
     }
     
     private void handleKeyboardInput() {
+        if (!nameInputFocused) {
+            return;
+        }
+
         // Handle backspace
         if (Gdx.input.isKeyJustPressed(Input.Keys.BACKSPACE)) {
             if (nameBuilder.length() > 0) {
@@ -275,23 +268,95 @@ public class CharacterCreationScreen implements Screen {
                 showCursor = true;
             }
         }
-        
+
         // Handle enter key (create character if valid)
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) && nameValid) {
             createCharacter();
             return;
         }
-        
+
         // Handle escape key (cancel)
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             game.setScreen(new CharacterSelectScreen(game));
             return;
         }
-        
-        // Handle character input - we'll use a simpler approach
-        // Since getTextInput() requires a listener, we'll handle individual key presses
-        // This is already handled by the text input system in LibGDX
-        // We'll rely on the system's text input handling
+
+        // Handle basic printable keys
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+            appendCharacter(' ');
+        }
+
+        boolean shift = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
+
+        appendKey(Input.Keys.A, 'a', 'A', shift);
+        appendKey(Input.Keys.B, 'b', 'B', shift);
+        appendKey(Input.Keys.C, 'c', 'C', shift);
+        appendKey(Input.Keys.D, 'd', 'D', shift);
+        appendKey(Input.Keys.E, 'e', 'E', shift);
+        appendKey(Input.Keys.F, 'f', 'F', shift);
+        appendKey(Input.Keys.G, 'g', 'G', shift);
+        appendKey(Input.Keys.H, 'h', 'H', shift);
+        appendKey(Input.Keys.I, 'i', 'I', shift);
+        appendKey(Input.Keys.J, 'j', 'J', shift);
+        appendKey(Input.Keys.K, 'k', 'K', shift);
+        appendKey(Input.Keys.L, 'l', 'L', shift);
+        appendKey(Input.Keys.M, 'm', 'M', shift);
+        appendKey(Input.Keys.N, 'n', 'N', shift);
+        appendKey(Input.Keys.O, 'o', 'O', shift);
+        appendKey(Input.Keys.P, 'p', 'P', shift);
+        appendKey(Input.Keys.Q, 'q', 'Q', shift);
+        appendKey(Input.Keys.R, 'r', 'R', shift);
+        appendKey(Input.Keys.S, 's', 'S', shift);
+        appendKey(Input.Keys.T, 't', 'T', shift);
+        appendKey(Input.Keys.U, 'u', 'U', shift);
+        appendKey(Input.Keys.V, 'v', 'V', shift);
+        appendKey(Input.Keys.W, 'w', 'W', shift);
+        appendKey(Input.Keys.X, 'x', 'X', shift);
+        appendKey(Input.Keys.Y, 'y', 'Y', shift);
+        appendKey(Input.Keys.Z, 'z', 'Z', shift);
+
+        appendKey(Input.Keys.NUM_0, '0', ')', shift);
+        appendKey(Input.Keys.NUM_1, '1', '!', shift);
+        appendKey(Input.Keys.NUM_2, '2', '@', shift);
+        appendKey(Input.Keys.NUM_3, '3', '#', shift);
+        appendKey(Input.Keys.NUM_4, '4', '$', shift);
+        appendKey(Input.Keys.NUM_5, '5', '%', shift);
+        appendKey(Input.Keys.NUM_6, '6', '^', shift);
+        appendKey(Input.Keys.NUM_7, '7', '&', shift);
+        appendKey(Input.Keys.NUM_8, '8', '*', shift);
+        appendKey(Input.Keys.NUM_9, '9', '(', shift);
+
+        appendKey(Input.Keys.MINUS, '-', '_', shift);
+        appendKey(Input.Keys.EQUALS, '=', '+', shift);
+        appendKey(Input.Keys.COMMA, ',', '<', shift);
+        appendKey(Input.Keys.PERIOD, '.', '>', shift);
+        appendKey(Input.Keys.SLASH, '/', '?', shift);
+        appendKey(Input.Keys.SEMICOLON, ';', ':', shift);
+        appendKey(Input.Keys.APOSTROPHE, '\'', '"', shift);
+        appendKey(Input.Keys.LEFT_BRACKET, '[', '{', shift);
+        appendKey(Input.Keys.RIGHT_BRACKET, ']', '}', shift);
+        appendKey(Input.Keys.BACKSLASH, '\\', '|', shift);
+
+        appendKey(Input.Keys.GRAVE, '`', '~', shift);
+    }
+
+    private void appendKey(int key, char normal, char shifted, boolean shift) {
+        if (Gdx.input.isKeyJustPressed(key)) {
+            appendCharacter(shift ? shifted : normal);
+        }
+    }
+
+    private void appendCharacter(char c) {
+        if (nameBuilder.length() >= Core.MAX_NAME_LENGTH) {
+            return;
+        }
+        if (c == '\u0011') {
+            return;
+        }
+        nameBuilder.append(c);
+        validateName();
+        cursorBlinkTimer = 0f;
+        showCursor = true;
     }
     
     private void createCharacter() {
@@ -308,43 +373,24 @@ public class CharacterCreationScreen implements Screen {
     }
     
     private void drawButton(String text, Rectangle bounds, boolean isHovered, boolean enabled) {
-        // Draw button background
-        if (!enabled) {
-            batch.setColor(0.2f, 0.2f, 0.2f, 1f);
-        } else if (isHovered) {
-            batch.setColor(0.3f, 0.3f, 0.3f, 1f);
-        } else {
-            batch.setColor(0.25f, 0.25f, 0.25f, 1f);
-        }
-        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, bounds.width, bounds.height);
-        batch.setColor(Color.WHITE);
-        
-        // Draw button border
-        if (!enabled) {
-            batch.setColor(Color.DARK_GRAY);
-        } else if (isHovered) {
-            batch.setColor(Color.YELLOW);
-        } else {
-            batch.setColor(Color.GRAY);
-        }
-        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, bounds.width, 2f);
-        batch.draw(game.backgroundRectangle, bounds.x, bounds.y + bounds.height - 2f, bounds.width, 2f);
-        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, 2f, bounds.height);
-        batch.draw(game.backgroundRectangle, bounds.x + bounds.width - 2f, bounds.y, 2f, bounds.height);
-        batch.setColor(Color.WHITE);
-        
-        // Draw button text
+        // Draw button text only for a minimalistic design
         if (!enabled) {
             game.bodyFont.setColor(0.5f, 0.5f, 0.5f, 1f);
         } else if (isHovered) {
-            game.bodyFont.setColor(Color.YELLOW);
+            game.bodyFont.setColor(PANEL_BORDER);
         } else {
             game.bodyFont.setColor(Color.WHITE);
         }
         layout.setText(game.bodyFont, text);
-        game.bodyFont.draw(batch, text,
-            bounds.x + (bounds.width - layout.width) / 2f,
-            bounds.y + (bounds.height + layout.height) / 2f);
+        float textX = bounds.x + (bounds.width - layout.width) / 2f;
+        float textY = bounds.y + (bounds.height + layout.height) / 2f;
+        game.bodyFont.draw(batch, text, textX, textY);
+        
+        if (isHovered && enabled) {
+            batch.setColor(PANEL_BORDER);
+            batch.draw(game.backgroundRectangle, textX, bounds.y + 8f, layout.width, 1.5f);
+            batch.setColor(Color.WHITE);
+        }
     }
     
     @Override
