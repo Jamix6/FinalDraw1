@@ -130,6 +130,14 @@ public class StageSelectScreen implements Screen {
             game.bodyFont.draw(batch, preview, previewX, previewY);
         }
         
+        // Draw lives for Medium difficulty
+        if (game.difficulty == 1) { // Medium difficulty
+            game.bodyFont.setColor(Color.YELLOW);
+            String livesText = "Lives: " + game.getMediumLives();
+            layout.setText(game.bodyFont, livesText);
+            game.bodyFont.draw(batch, livesText, 50, 50);
+        }
+        
         batch.end();
         
         // Handle clicks

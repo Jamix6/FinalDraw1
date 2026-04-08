@@ -203,6 +203,7 @@ public class Core extends Game {
         public int easyUnlocked;
         public int mediumUnlocked;
         public int hardUnlocked;
+        public int mediumLives; // Lives for Medium difficulty retry system
         
         public SaveProfile(int slot) {
             this.slot = slot;
@@ -213,6 +214,7 @@ public class Core extends Game {
             this.easyUnlocked = 1;
             this.mediumUnlocked = 1;
             this.hardUnlocked = 1;
+            this.mediumLives = 3; // Start with 3 lives for Medium difficulty
         }
         
         public boolean exists() {
@@ -242,6 +244,25 @@ public class Core extends Game {
             if (stage >= current && stage < MAX_STAGES) {
                 setUnlockedStage(difficulty, stage + 1);
             }
+        }
+        
+        public int getMediumLives() {
+            return mediumLives;
+        }
+        
+        public void setMediumLives(int lives) {
+            this.mediumLives = Math.max(0, lives);
+        }
+        
+        public void decrementMediumLives() {
+            if (mediumLives > 0) {
+                mediumLives--;
+            }
+        }
+        
+        public void resetMediumProgression() {
+            mediumUnlocked = 1;
+            mediumLives = 3;
         }
         
         public String getFormattedPlayTime() {
@@ -312,6 +333,7 @@ public class Core extends Game {
         profile.easyUnlocked = prefs.getInteger(prefix + "easyUnlocked", 1);
         profile.mediumUnlocked = prefs.getInteger(prefix + "mediumUnlocked", 1);
         profile.hardUnlocked = prefs.getInteger(prefix + "hardUnlocked", 1);
+        profile.mediumLives = prefs.getInteger(prefix + "mediumLives", 3);
         
         return profile;
     }
@@ -328,6 +350,7 @@ public class Core extends Game {
         prefs.putInteger(prefix + "easyUnlocked", profile.easyUnlocked);
         prefs.putInteger(prefix + "mediumUnlocked", profile.mediumUnlocked);
         prefs.putInteger(prefix + "hardUnlocked", profile.hardUnlocked);
+        prefs.putInteger(prefix + "mediumLives", profile.mediumLives);
         prefs.putBoolean(prefix + "exists", profile.exists());
         
         prefs.flush();
@@ -361,6 +384,7 @@ public class Core extends Game {
         prefs.remove(prefix + "easyUnlocked");
         prefs.remove(prefix + "mediumUnlocked");
         prefs.remove(prefix + "hardUnlocked");
+        prefs.remove(prefix + "mediumLives");
         prefs.remove(prefix + "exists");
         
         prefs.flush();
@@ -422,6 +446,33 @@ public class Core extends Game {
         SaveProfile profile = getCurrentProfile();
         if (profile == null) return;
         profile.completeStage(difficulty, stage);
+        saveProfile(profile);
+    }
+    
+    public int getMediumLives() {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return 3;
+        return profile.getMediumLives();
+    }
+    
+    public void setMediumLives(int lives) {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return;
+        profile.setMediumLives(lives);
+        saveProfile(profile);
+    }
+    
+    public void decrementMediumLives() {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return;
+        profile.decrementMediumLives();
+        saveProfile(profile);
+    }
+    
+    public void resetMediumProgression() {
+        SaveProfile profile = getCurrentProfile();
+        if (profile == null) return;
+        profile.resetMediumProgression();
         saveProfile(profile);
     }
     

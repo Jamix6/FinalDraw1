@@ -64,8 +64,21 @@ public class StageCompleteScreen implements Screen {
                 retryButton = null;
                 stageSelectButton = new Rectangle(centerX - buttonWidth / 2, startY, buttonWidth, buttonHeight);
                 continueButton = null;
+            } else if (difficulty == 1) { // Medium difficulty
+                int livesLeft = game.getMediumLives();
+                if (livesLeft > 0) {
+                    // Still have lives, allow retry
+                    retryButton = new Rectangle(centerX - buttonWidth / 2, startY, buttonWidth, buttonHeight);
+                    stageSelectButton = new Rectangle(centerX - buttonWidth / 2, startY - buttonHeight - buttonSpacing, buttonWidth, buttonHeight);
+                } else {
+                    // No lives left, reset progression and only show stage select
+                    game.resetMediumProgression();
+                    retryButton = null;
+                    stageSelectButton = new Rectangle(centerX - buttonWidth / 2, startY, buttonWidth, buttonHeight);
+                }
+                continueButton = null;
             } else {
-                // Easy/Medium: Retry and Stage Select
+                // Easy: Retry and Stage Select
                 retryButton = new Rectangle(centerX - buttonWidth / 2, startY, buttonWidth, buttonHeight);
                 stageSelectButton = new Rectangle(centerX - buttonWidth / 2, startY - buttonHeight - buttonSpacing, buttonWidth, buttonHeight);
                 continueButton = null;
@@ -105,6 +118,13 @@ public class StageCompleteScreen implements Screen {
         } else {
             if (difficulty == 2) {
                 message = "Hard difficulty: Progression reset.";
+            } else if (difficulty == 1) { // Medium difficulty
+                int livesLeft = game.getMediumLives();
+                if (livesLeft > 0) {
+                    message = "Life consumed! Lives remaining: " + livesLeft + ". Try again or select another stage.";
+                } else {
+                    message = "No lives remaining. Medium difficulty progression reset.";
+                }
             } else {
                 message = "Try again or select another stage.";
             }

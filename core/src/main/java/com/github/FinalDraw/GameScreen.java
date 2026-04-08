@@ -1,6 +1,7 @@
 package com.github.FinalDraw;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
@@ -92,6 +93,9 @@ public class GameScreen implements Screen {
     private boolean roundOutcomeWin;
     private boolean roundOutcomeDraw;
     private String roundOutcomeText;
+
+    // Debug mode
+    private boolean debugMode = false;
 
     //Buhay and shi
     private int playerLives;
@@ -1462,6 +1466,14 @@ public class GameScreen implements Screen {
             batch.setColor(Color.WHITE);
         }
 
+        // Debug mode indicator
+        if (debugMode) {
+            game.bodyFont.setColor(Color.RED);
+            String debugText = "DEBUG - F1:WIN F2:LOSS F3:P_WIN F4:AI_WIN F12:TOGGLE";
+            layout.setText(game.bodyFont, debugText);
+            game.bodyFont.draw(batch, debugText, Gdx.graphics.getWidth() - layout.width - 10, Gdx.graphics.getHeight() - 10);
+        }
+
         batch.end();
 
         updateAITurn(delta);
@@ -1474,59 +1486,92 @@ public class GameScreen implements Screen {
 
     private void handleGameInput() {
         if (isMatchEndOpen) {
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 returnToMenu();
             }
             return;
         }
         if (isLevelSelectOpen) {
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 isLevelSelectOpen = false;
             }
             return;
         }
         if (isQuitConfirmOpen) {
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 isQuitConfirmOpen = false;
             }
             return;
         }
         if (isOptionsOpen) {
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 isOptionsOpen = false;
             }
             return;
         }
         if (isPowerupPanelOpen) {
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 isPowerupPanelOpen = false;
             }
             return;
         }
         if (!isGameActive) {
 
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
                 resetGame();
             }
         } else if (isRoundActive) {
             if (!isAITurnPending) {
-                if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
                     drawCardForPlayer();
                 }
 
-                if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
                     passTurn();
                 }
             }
         } else {
 
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
                 startNextRound();
             }
         }
 
 
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+        // Debug mode: Force win/loss conditions (F1 = Win, F2 = Loss)
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F1) && debugMode) {
+            // Force player win
+            playerLives = maxPlayerLives;
+            aiLives = 0;
+            endGame();
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F2) && debugMode) {
+            // Force player loss
+            playerLives = 0;
+            aiLives = maxAILives;
+            endGame();
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F3) && debugMode) {
+            // Force player to reach target score instantly
+            playerScore = playerTarget;
+            checkRoundEnd();
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F4) && debugMode) {
+            // Force AI to reach target score instantly
+            aiScore = aiTarget;
+            checkRoundEnd();
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F12)) {
+            // Toggle debug mode
+            debugMode = !debugMode;
+            Gdx.app.log("GameScreen", "Debug mode: " + (debugMode ? "ENABLED" : "DISABLED"));
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if (isGameActive && isRoundActive) {
                 isOptionsOpen = true;
             } else {
@@ -1978,6 +2023,12 @@ public class GameScreen implements Screen {
         
         // Navigate to StageCompleteScreen instead of showing match end panel
         boolean playerWon = playerLives > 0;
+        
+        // Consume a life for Medium difficulty losses
+        if (!playerWon && game.difficulty == 1) {
+            game.decrementMediumLives();
+        }
+        
         game.setScreen(new StageCompleteScreen(game, currentStage, playerWon));
         
         // If player won, complete the stage for current difficulty
