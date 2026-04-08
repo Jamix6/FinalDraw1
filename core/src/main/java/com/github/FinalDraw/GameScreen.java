@@ -46,7 +46,6 @@ public class GameScreen implements Screen {
     private Rectangle optionsButtonBounds;
     private Rectangle optionsPanelBounds;
     private Rectangle optionsContinueBounds;
-    private Rectangle optionsRestartBounds;
     private Rectangle optionsHomeBounds;
     private boolean isOptionsOpen;
     private boolean isQuitConfirmOpen;
@@ -423,7 +422,7 @@ public class GameScreen implements Screen {
         optionsButtonBounds = new Rectangle(1120f, 665f, 130f, 40f);
         // Options panel is centered in render(), so buttons should be centered too
         float panelWidth = 500f;
-        float panelHeight = 300f;
+        float panelHeight = 240f;
         float panelX = (REF_W - panelWidth) / 2f;
         float panelY = (REF_H - panelHeight) / 2f;
         optionsPanelBounds = new Rectangle(panelX, panelY, panelWidth, panelHeight);
@@ -432,9 +431,8 @@ public class GameScreen implements Screen {
         float buttonWidth = 300f;
         float buttonHeight = 40f;
         float buttonX = panelX + (panelWidth - buttonWidth) / 2f;
-        optionsContinueBounds = new Rectangle(buttonX, panelY + 180f, buttonWidth, buttonHeight);
-        optionsRestartBounds = new Rectangle(buttonX, panelY + 120f, buttonWidth, buttonHeight);
-        optionsHomeBounds = new Rectangle(buttonX, panelY + 60f, buttonWidth, buttonHeight);
+        optionsContinueBounds = new Rectangle(buttonX, panelY + 150f, buttonWidth, buttonHeight);
+        optionsHomeBounds = new Rectangle(buttonX, panelY + 90f, buttonWidth, buttonHeight);
 
         quitConfirmPanelBounds = new Rectangle(420f, 265f, 440f, 190f);
         quitYesBounds = new Rectangle(465f, 290f, 170f, 50f);
@@ -1322,30 +1320,44 @@ public class GameScreen implements Screen {
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
             batch.setColor(Color.WHITE);
 
-            // Draw options panel texture centered
-            if (optionsPanelTexture != null) {
-                float panelWidth = 500f;
-                float panelHeight = 300f;
-                float panelX = (REF_W - panelWidth) / 2f;
-                float panelY = (REF_H - panelHeight) / 2f;
-                batch.draw(optionsPanelTexture, sx(panelX), sy(panelY), ss(panelWidth), ss(panelHeight));
-            }
-
-            float prevBodyScaleX = game.bodyFont.getData().scaleX;
-            float prevBodyScaleY = game.bodyFont.getData().scaleY;
-            game.bodyFont.getData().setScale(layoutScale * 0.9f);
-
+            // Draw options panel background
+            float panelWidth = optionsPanelBounds.width;
+            float panelHeight = optionsPanelBounds.height;
+            float panelX = optionsPanelBounds.x;
+            float panelY = optionsPanelBounds.y;
+            batch.setColor(0.08f, 0.08f, 0.08f, 0.95f);
+            batch.draw(solidPixel, sx(panelX), sy(panelY), ss(panelWidth), ss(panelHeight));
+            batch.setColor(0.55f, 0.12f, 0.10f, 1f);
+            batch.draw(solidPixel, sx(panelX + 4f), sy(panelY + panelHeight - 48f), ss(panelWidth - 8f), ss(36f));
             batch.setColor(Color.WHITE);
 
-            // Draw debug rectangles for button click areas (optional, can be removed)
-            batch.setColor(1f, 0f, 0f, 0.2f);
+            float optionsPrevTitleScaleX = game.titleFont.getData().scaleX;
+            float optionsPrevTitleScaleY = game.titleFont.getData().scaleY;
+            game.titleFont.getData().setScale(layoutScale * 0.65f);
+            String optionsTitle = "OPTIONS";
+            layout.setText(game.titleFont, optionsTitle);
+            game.titleFont.draw(batch, optionsTitle, sx(panelX + (panelWidth - layout.width) / 2f), sy(panelY + panelHeight - 18f));
+            game.titleFont.getData().setScale(optionsPrevTitleScaleX, optionsPrevTitleScaleY);
+
+            float optionsPrevBodyScaleX = game.bodyFont.getData().scaleX;
+            float optionsPrevBodyScaleY = game.bodyFont.getData().scaleY;
+            game.bodyFont.getData().setScale(layoutScale * 0.95f);
+            game.bodyFont.setColor(Color.WHITE);
+
+            batch.setColor(0.16f, 0.16f, 0.16f, 1f);
             batch.draw(solidPixel, sx(optionsContinueBounds.x), sy(optionsContinueBounds.y), ss(optionsContinueBounds.width), ss(optionsContinueBounds.height));
-            batch.draw(solidPixel, sx(optionsRestartBounds.x), sy(optionsRestartBounds.y), ss(optionsRestartBounds.width), ss(optionsRestartBounds.height));
             batch.draw(solidPixel, sx(optionsHomeBounds.x), sy(optionsHomeBounds.y), ss(optionsHomeBounds.width), ss(optionsHomeBounds.height));
+            batch.setColor(0.62f, 0.10f, 0.08f, 1f);
+            batch.draw(solidPixel, sx(optionsContinueBounds.x), sy(optionsContinueBounds.y + optionsContinueBounds.height - 6f), ss(optionsContinueBounds.width), ss(6f));
+            batch.draw(solidPixel, sx(optionsHomeBounds.x), sy(optionsHomeBounds.y + optionsHomeBounds.height - 6f), ss(optionsHomeBounds.width), ss(6f));
             batch.setColor(Color.WHITE);
 
+            layout.setText(game.bodyFont, "Continue");
+            game.bodyFont.draw(batch, "Continue", sx(optionsContinueBounds.x + (optionsContinueBounds.width - layout.width) / 2f), sy(optionsContinueBounds.y + 30f));
+            layout.setText(game.bodyFont, "Exit");
+            game.bodyFont.draw(batch, "Exit", sx(optionsHomeBounds.x + (optionsHomeBounds.width - layout.width) / 2f), sy(optionsHomeBounds.y + 30f));
 
-            game.bodyFont.getData().setScale(prevBodyScaleX, prevBodyScaleY);
+            game.bodyFont.getData().setScale(optionsPrevBodyScaleX, optionsPrevBodyScaleY);
         }
 
         if (isQuitConfirmOpen && solidPixel != null) {
@@ -1674,16 +1686,6 @@ public class GameScreen implements Screen {
                 if (optionsContinueBounds.contains(refMouseX, refMouseY)) {
                     game.playButtonSfx();
                     isOptionsOpen = false;
-                    return;
-                }
-                if (optionsRestartBounds.contains(refMouseX, refMouseY)) {
-                    game.playButtonSfx();
-                    isOptionsOpen = false;
-                    isQuitConfirmOpen = false;
-                    isPowerupPanelOpen = false;
-                    showRoundOutcome = false;
-                    roundOutcomeText = null;
-                    resetGame();
                     return;
                 }
                 if (optionsHomeBounds.contains(refMouseX, refMouseY)) {
