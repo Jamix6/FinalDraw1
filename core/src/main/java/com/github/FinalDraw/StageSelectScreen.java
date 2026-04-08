@@ -246,7 +246,10 @@ public class StageSelectScreen implements Screen {
             return base + " - LOCKED";
         }
         
-        // Stage-specific previews (will be expanded with difficulty mechanics later)
+        StageConfig config = StageConfig.forStage(stageNumber);
+        if (config != null) {
+            return base + " - " + config.description;
+        }
         switch (stageNumber) {
             case 1:
                 return base + " - Tutorial: Learn the basics";

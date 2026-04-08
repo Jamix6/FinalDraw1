@@ -30,31 +30,6 @@ public class GameScreen implements Screen {
         }
     }
 
-    private enum PowerupType {
-        GO_FOR_17("Go for 17"),
-        GO_FOR_24("Go for 24"),
-        PROTECTION("Protection"),
-        REMOVAL("Removal"),
-        RESHUFFLE("Reshuffle"),
-        DOUBLE_DOWN("DoubleDown"),
-        FORESIGHT("Foresight"),
-        SWAP("Swap"),
-        OVERLOAD("Overload"),
-        DISCARD("Discard"),
-        TOSS("Toss"),
-        CLEAR("Clear");
-
-        private final String label;
-
-        PowerupType(String label) {
-            this.label = label;
-        }
-
-        public String getLabel() {
-            return label;
-        }
-    }
-
     private final Core game;
     private SpriteBatch batch;
     private GlyphLayout layout;
@@ -187,6 +162,7 @@ public class GameScreen implements Screen {
     // Diff info
     private String difficultyName;
     private int currentStage;
+    private StageConfig stageConfig;
     
     // Play time tracking
     private float playTimeAccumulator; // seconds
@@ -215,8 +191,9 @@ public class GameScreen implements Screen {
         this.game = game;
         this.currentStage = stage;
 
-        // setup diff
+        // setup diff and stage
         setupDifficulty();
+        setupStage();
 
         this.isGameActive = true;
         this.isRoundActive = true;
@@ -272,6 +249,18 @@ public class GameScreen implements Screen {
         playerInventoryPowerups.clear();
         aiInventoryPowerups.clear();
         powerupsUsedThisRound = 0;
+    }
+
+    private void setupStage() {
+        stageConfig = StageConfig.forStage(currentStage);
+        applyStageTargetModifiers();
+    }
+
+    private void applyStageTargetModifiers() {
+        if (stageConfig == null) return;
+        playerTargetDelta = stageConfig.playerTargetDelta;
+        aiTargetDelta = stageConfig.aiTargetDelta;
+        recomputeTargets();
     }
 
     private void resetRoundModifiers() {
@@ -526,6 +515,7 @@ public class GameScreen implements Screen {
         playerActiveDebuffs.clear();
         aiActiveDebuffs.clear();
         resetRoundModifiers();
+        applyStageTargetModifiers();
         tickShieldsForNewRound();
         generateRoundPowerups();
 
@@ -557,13 +547,32 @@ public class GameScreen implements Screen {
     private void generateRoundPowerups() {
         playerRoundPowerups.clear();
         aiRoundPowerups.clear();
-        playerRoundPowerups.add(getRandomPowerup());
-        playerRoundPowerups.add(getRandomPowerup());
-        aiRoundPowerups.add(getRandomPowerup());
-        aiRoundPowerups.add(getRandomPowerup());
+        aiInventoryPowerups.clear();
+
+        int playerCount = 2;
+        int aiCount = 2;
+        if (stageConfig != null) {
+            playerCount = stageConfig.playerRoundPowerupCount;
+            aiCount = stageConfig.aiRoundPowerupCount;
+        }
+
+        for (int i = 0; i < playerCount; i++) {
+            playerRoundPowerups.add(getRandomPowerup());
+        }
+        for (int i = 0; i < aiCount; i++) {
+            aiRoundPowerups.add(getRandomPowerup());
+        }
+        if (stageConfig != null) {
+            for (int i = 0; i < stageConfig.aiInventoryPowerupCount; i++) {
+                aiInventoryPowerups.add(stageConfig.getRandomPowerup());
+            }
+        }
     }
 
     private PowerupType getRandomPowerup() {
+        if (stageConfig != null) {
+            return stageConfig.getRandomPowerup();
+        }
         PowerupType[] values = PowerupType.values();
         int idx = (int) (Math.random() * values.length);
         if (idx < 0) idx = 0;
@@ -578,7 +587,11 @@ public class GameScreen implements Screen {
 
     private void maybeUseAIPowerup() {
         if (powerupsUsedThisRound >= 2) return;
-        if (Math.random() > 0.35) return;
+        float threshold = 0.35f;
+        if (stageConfig != null) {
+            threshold = stageConfig.aiPowerupChance;
+        }
+        if (Math.random() > threshold) return;
 
         PowerupType powerup = null;
         int source = -1;
@@ -906,6 +919,7 @@ public class GameScreen implements Screen {
     private void resetGame() {
         // Reset lives based on current difficulty
         setupDifficulty();
+        setupStage();
         currentRound = 1;
         playerWins = 0;
         aiWins = 0;
