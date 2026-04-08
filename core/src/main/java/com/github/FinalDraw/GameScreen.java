@@ -227,13 +227,14 @@ public class GameScreen implements Screen {
                 break;
             case 2:
                 difficultyName = "Hard";
-                maxPlayerLives = 1;
+                maxPlayerLives = 4;
                 playerLives = maxPlayerLives;
                 aiLives = maxAILives;
                 break;
             case 1:
             default:
                 difficultyName = "Medium";
+                maxPlayerLives = 5;
                 playerLives = maxPlayerLives;
                 aiLives = maxAILives;
                 break;
@@ -961,7 +962,7 @@ public class GameScreen implements Screen {
 
     private void drawHealthBar(float x, float y, int currentHealth, int maxHealth) {
         if (healthBarTextures == null || healthBarTextures.length != 8) return;
-        int index = getBarIndex(currentHealth, maxHealth, 7);
+        int index = Math.max(0, Math.min(currentHealth, healthBarTextures.length - 1));
         Texture texture = healthBarTextures[index];
         if (texture == null) return;
         batch.setColor(Color.WHITE);
@@ -1070,6 +1071,10 @@ public class GameScreen implements Screen {
 
         drawHealthBar(barX, playerHealthY, playerLives, maxPlayerLives);
         drawShieldBar(barX, playerHealthY - 10f, playerShield, maxShield);
+
+        String livesText = "Lives: " + playerLives + " / " + maxPlayerLives;
+        layout.setText(game.bodyFont, livesText);
+        game.bodyFont.draw(batch, livesText, sx(barX), sy(playerHealthY - 20f));
 
         if (aiDeckTexture != null) {
             float deckH = 140f;
