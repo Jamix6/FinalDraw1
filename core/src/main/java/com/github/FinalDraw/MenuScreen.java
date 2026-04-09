@@ -23,7 +23,7 @@ public class MenuScreen implements Screen {
     private static final float FADE_IN_DURATION = 1.0f;
 
     // Menu items
-    private static final String[] MENU_ITEMS = {"Play", "Instructions", "Settings", "Character Select", "Exit"};
+    private static final String[] MENU_ITEMS = {"Play", "Character Select", "Instructions", "Settings", "Exit"};
     private Rectangle[] menuBounds;
 
     private static final float LEFT_MARGIN = 50;
@@ -236,9 +236,9 @@ public class MenuScreen implements Screen {
     private void handleMenuClick(int index) {
         switch (index) {
             case 0: isLevelSelectOpen = true; break;
-            case 1: game.setScreen(new Instructions(game)); break;
-            case 2: game.setScreen(new SettingsScreen(game)); break;
-            case 3: game.setScreen(new CharacterSelectScreen(game)); break;
+            case 1: game.setScreen(new CharacterSelectScreen(game)); break;
+            case 2: game.setScreen(new Instructions(game)); break;
+            case 3: game.setScreen(new SettingsScreen(game)); break;
             case 4: Gdx.app.exit(); break;
         }
     }
