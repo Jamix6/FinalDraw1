@@ -168,6 +168,9 @@ public class GameScreen implements Screen {
     private static final float PLAY_TIME_UPDATE_INTERVAL = 60f; // Update every minute
     private float playTimeUpdateTimer;
 
+    private boolean pendingScreenTransition = false;
+    private Screen nextScreen = null;
+
     // Powerups INfoo
     private Array<PowerupType> playerRoundPowerups = new Array<>();
     private Array<PowerupType> aiRoundPowerups = new Array<>();
@@ -188,9 +191,8 @@ public class GameScreen implements Screen {
 
     public GameScreen(Core game, int stage) {
         this.game = game;
-        this.currentStage = stage;
+        this.currentStage = Math.max(1, Math.min(stage, Core.MAX_STAGES));
 
-        // setup diff and stage
         setupDifficulty();
         setupStage();
 
@@ -253,6 +255,9 @@ public class GameScreen implements Screen {
 
     private void setupStage() {
         stageConfig = StageConfig.forStage(currentStage);
+        if (stageConfig == null) {
+            stageConfig = StageConfig.forStage(1);
+        }
         applyStageTargetModifiers();
     }
 
@@ -1514,6 +1519,12 @@ public class GameScreen implements Screen {
         float mouseX = Gdx.input.getX();
         float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
         handleMouseInput(mouseX, mouseY);
+
+        if (pendingScreenTransition && nextScreen != null) {
+            game.setScreen(nextScreen);
+            pendingScreenTransition = false;
+            nextScreen = null;
+        }
     }
 
     private void handleGameInput() {
@@ -2043,20 +2054,18 @@ public class GameScreen implements Screen {
         isGameActive = false;
         isRoundActive = false;
 
-        // Navigate to StageCompleteScreen instead of showing match end panel
         boolean playerWon = playerLives > 0;
 
-        // Consume a life for Medium difficulty losses
         if (!playerWon && game.difficulty == 1) {
             game.decrementMediumLives();
         }
 
-        game.setScreen(new StageCompleteScreen(game, currentStage, playerWon));
-
-        // If player won, complete the stage for current difficulty
         if (playerWon) {
             game.completeStage(game.difficulty, currentStage);
         }
+
+        nextScreen = new StageCompleteScreen(game, currentStage, playerWon);
+        pendingScreenTransition = true;
     }
 
     private void returnToMenu() {
