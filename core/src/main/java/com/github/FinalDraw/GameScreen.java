@@ -162,7 +162,7 @@ public class GameScreen implements Screen {
     private String difficultyName;
     private int currentStage;
     private StageConfig stageConfig;
-    
+
     // Play time tracking
     private float playTimeAccumulator; // seconds
     private static final float PLAY_TIME_UPDATE_INTERVAL = 60f; // Update every minute
@@ -426,7 +426,7 @@ public class GameScreen implements Screen {
         float panelX = (REF_W - panelWidth) / 2f;
         float panelY = (REF_H - panelHeight) / 2f;
         optionsPanelBounds = new Rectangle(panelX, panelY, panelWidth, panelHeight);
-        
+
         // Centered options buttons within the panel
         float buttonWidth = 300f;
         float buttonHeight = 40f;
@@ -1038,7 +1038,7 @@ public class GameScreen implements Screen {
         if (isGameActive) {
             playTimeAccumulator += delta;
             playTimeUpdateTimer += delta;
-            
+
             // Update saved play time every minute
             if (playTimeUpdateTimer >= PLAY_TIME_UPDATE_INTERVAL) {
                 long minutesToAdd = (long) (playTimeUpdateTimer / 60f);
@@ -2042,17 +2042,17 @@ public class GameScreen implements Screen {
     private void endGame() {
         isGameActive = false;
         isRoundActive = false;
-        
+
         // Navigate to StageCompleteScreen instead of showing match end panel
         boolean playerWon = playerLives > 0;
-        
+
         // Consume a life for Medium difficulty losses
         if (!playerWon && game.difficulty == 1) {
             game.decrementMediumLives();
         }
-        
+
         game.setScreen(new StageCompleteScreen(game, currentStage, playerWon));
-        
+
         // If player won, complete the stage for current difficulty
         if (playerWon) {
             game.completeStage(game.difficulty, currentStage);

@@ -127,12 +127,12 @@ public class MenuScreen implements Screen {
         for (int i = 0; i < MENU_ITEMS.length; i++) {
             boolean isHovered = menuBounds[i].contains(mouseX, mouseY);
             boolean isEnabled = true;
-            
+
             // Check if "Play" button should be disabled (index 0 is "Play")
             if (i == 0) { // "Play" button
                 isEnabled = game.getCurrentProfile() != null;
             }
-            
+
             if (isEnabled && isHovered) {
                 // Draw drop shadow for hovered text (offset by 2 pixels)
                 game.menuFont.setColor(0, 0, 0, 0.7f * alpha);
@@ -162,13 +162,20 @@ public class MenuScreen implements Screen {
                 batch.draw(difficultyPanelTexture, levelPanelBounds.x, levelPanelBounds.y, levelPanelBounds.width, levelPanelBounds.height);
             }
 
-            // Draw debug rectangles for button click areas (optional, can be removed)
+            /* Draw debug rectangles for button click areas (can be removed)
             batch.setColor(1f, 0f, 0f, 0.2f);
             batch.draw(solidPixel, easyBounds.x, easyBounds.y, easyBounds.width, easyBounds.height);
             batch.draw(solidPixel, mediumBounds.x, mediumBounds.y, mediumBounds.width, mediumBounds.height);
             batch.draw(solidPixel, hardBounds.x, hardBounds.y, hardBounds.width, hardBounds.height);
             batch.setColor(Color.WHITE);
+
+             */
         }
+
+        // Music Credit Rawr
+        game.bodyFont.setColor(1f, 1f, 1f, 0.1f * alpha);
+        layout.setText(game.bodyFont, "Music by Xeolt");
+        game.bodyFont.draw(batch, layout, Gdx.graphics.getWidth() - layout.width - 1140, 30);
 
         // Reset batch color
         batch.setColor(Color.WHITE);
@@ -215,7 +222,7 @@ public class MenuScreen implements Screen {
                     if (i == 0) { // "Play" button
                         isEnabled = game.getCurrentProfile() != null;
                     }
-                    
+
                     if (isEnabled) {
                         game.playButtonSfx();
                         handleMenuClick(i);
