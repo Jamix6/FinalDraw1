@@ -15,11 +15,12 @@ public class Instructions implements Screen {
 
     // Navigation
     private int currentPage = 0;
-    private static final int TOTAL_PAGES = 6;
+    private static final int TOTAL_PAGES = 7;
     private Rectangle prevButton, nextButton, backButton;
 
     // Page content
     private static final String[] PAGE_TITLES = {
+        "[Controls]",
         "[How to Win?]",
         "[Cards]",
         "[Game Progression]",
@@ -29,6 +30,11 @@ public class Instructions implements Screen {
     };
 
     private static final String[][] PAGE_CONTENT = {
+        {
+            "- SPACEBAR to draw a card.",
+            "- P to pass your turn.",
+            "- ESC to open the options during gameplay."
+        },
         {
             "- The player who scores closer to 21 wins.",
             "",
