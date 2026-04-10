@@ -6,16 +6,21 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 
 public class StageCompleteScreen implements Screen {
     private final Core game;
     private SpriteBatch batch;
+    private ShapeRenderer shapeRenderer;
     private GlyphLayout layout;
 
     private int stage;
     private boolean won;
     private int difficulty;
+
+    // UI Panel
+    private Rectangle panelBounds;
 
     // Buttons
     private Rectangle continueButton;
@@ -35,10 +40,17 @@ public class StageCompleteScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
 
         updateButtonPositions();
         game.playMenuMusic();
+        
+        if (won) {
+            game.playWinSfx();
+        } else {
+            game.playLoseSfx();
+        }
     }
 
     private void updateButtonPositions() {
@@ -48,9 +60,10 @@ public class StageCompleteScreen implements Screen {
         float centerX = screenWidth / 2f;
         float buttonWidth = 300f;
         float buttonHeight = 50f;
-        float buttonSpacing = 20f;
+        float buttonSpacing = 15f;
 
-        float startY = screenHeight / 2f - 100f;
+        // Position buttons closer to the message (which is at H - 180)
+        float startY = screenHeight - 260f; 
 
         if (won) {
             // Win: Continue, Stage Select, Retry
@@ -84,6 +97,11 @@ public class StageCompleteScreen implements Screen {
                 continueButton = null;
             }
         }
+
+        // Define panel bounds to wrap message and buttons
+        float panelW = 450f;
+        float panelH = 290f;
+        panelBounds = new Rectangle(centerX - panelW / 2f, screenHeight - 140f - panelH, panelW, panelH);
     }
 
     @Override
@@ -93,9 +111,8 @@ public class StageCompleteScreen implements Screen {
 
         batch.begin();
 
-        // Draw static background (same as Instructions screen)
+        // Draw static background & shadow
         batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        batch.draw(game.backgroundRectangle, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.draw(game.shadow, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         // Draw title
@@ -105,9 +122,31 @@ public class StageCompleteScreen implements Screen {
         game.titleFont.draw(batch, title,
             (Gdx.graphics.getWidth() - layout.width) / 2,
             Gdx.graphics.getHeight() - 50);
+        batch.end();
 
-        // Draw message
-        game.bodyFont.setColor(Color.WHITE);
+        // Draw black box background for content
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+        
+        // Rounded black box
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0, 0, 0, 0.7f);
+        drawRoundedRect(shapeRenderer, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height, 20f);
+        shapeRenderer.end();
+
+        // Thick black outline
+        Gdx.gl.glLineWidth(3.0f);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(Color.BLACK);
+        drawRoundedRectOutline(shapeRenderer, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height, 20f);
+        shapeRenderer.end();
+        Gdx.gl.glLineWidth(1.0f);
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        batch.begin();
+        // Draw message in Light Blue
+        game.bodyFont.setColor(Color.CYAN);
         String message;
         if (won) {
             if (stage < Core.MAX_STAGES) {
@@ -116,8 +155,9 @@ public class StageCompleteScreen implements Screen {
                 message = "All stages completed!";
             }
         } else {
+            game.bodyFont.setColor(Color.WHITE); // Keep failure messages white or red
             if (difficulty == 2) {
-                message = "Hard difficulty: 1 life only. Progression reset on loss.";
+                message = "Hard: 1 life. Reset on loss";
             } else if (difficulty == 1) { // Medium difficulty
                 int livesLeft = game.getMediumLives();
                 if (livesLeft > 0) {
@@ -141,13 +181,13 @@ public class StageCompleteScreen implements Screen {
         // Draw buttons
         if (continueButton != null) {
             String buttonText = stage < Core.MAX_STAGES ? "Continue to Stage " + ROMAN_NUMERALS[stage] : "Back to Menu";
-            drawButton(buttonText, continueButton, mouseX, mouseY - 20, true);
+            drawButton(buttonText, continueButton, mouseX, mouseY, true);
         }
         if (retryButton != null) {
-            drawButton("Retry", retryButton, mouseX, mouseY - 20, true);
+            drawButton("Retry", retryButton, mouseX, mouseY, true);
         }
         if (stageSelectButton != null) {
-            drawButton("Stage Select", stageSelectButton, mouseX, mouseY - 20, true);
+            drawButton("Stage Select", stageSelectButton, mouseX, mouseY, true);
         }
 
         batch.end();
@@ -234,6 +274,43 @@ public class StageCompleteScreen implements Screen {
 
     @Override
     public void dispose() {
-        batch.dispose();
+        if (batch != null) batch.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
+    }
+
+    private void drawRoundedRect(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.rect(x + radius, y, width - 2 * radius, height);
+        renderer.rect(x, y + radius, radius, height - 2 * radius);
+        renderer.rect(x + width - radius, y + radius, radius, height - 2 * radius);
+        renderer.arc(x + radius, y + radius, radius, 180, 90);
+        renderer.arc(x + width - radius, y + radius, radius, 270, 90);
+        renderer.arc(x + width - radius, y + height - radius, radius, 0, 90);
+        renderer.arc(x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawRoundedRectOutline(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.line(x + radius, y, x + width - radius, y);
+        renderer.line(x + radius, y + height, x + width - radius, y + height);
+        renderer.line(x, y + radius, x, y + height - radius);
+        renderer.line(x + width, y + radius, x + width, y + height - radius);
+        drawArcOnly(renderer, x + radius, y + radius, radius, 180, 90);
+        drawArcOnly(renderer, x + width - radius, y + radius, radius, 270, 90);
+        drawArcOnly(renderer, x + width - radius, y + height - radius, radius, 0, 90);
+        drawArcOnly(renderer, x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawArcOnly(ShapeRenderer renderer, float x, float y, float radius, float start, float degrees) {
+        int segments = 20;
+        float step = degrees / segments;
+        for (int i = 0; i < segments; i++) {
+            float angle1 = (float) Math.toRadians(start + i * step);
+            float angle2 = (float) Math.toRadians(start + (i + 1) * step);
+            renderer.line(
+                x + (float) Math.cos(angle1) * radius,
+                y + (float) Math.sin(angle1) * radius,
+                x + (float) Math.cos(angle2) * radius,
+                y + (float) Math.sin(angle2) * radius
+            );
+        }
     }
 }

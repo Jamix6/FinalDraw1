@@ -2054,6 +2054,7 @@ public class GameScreen implements Screen {
         aiPostAction = 0;
     }
     private void damagePlayer() {
+        game.playGunshotSfx();
         if (playerShield > 0) {
             playerShield = Math.max(0, playerShield - 1);
             return;
@@ -2062,6 +2063,7 @@ public class GameScreen implements Screen {
     }
 
     private void damageAI() {
+        game.playGunshotSfx();
         if (aiShield > 0) {
             aiShield = Math.max(0, aiShield - 1);
             return;

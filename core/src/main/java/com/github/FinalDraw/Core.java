@@ -46,6 +46,10 @@ public class Core extends Game {
     private Sound giveCard2Sfx;
     private Sound givePowerupSfx;
     private Sound buttonSfx;
+    private Sound gunshotSfx;
+    private Sound winSfx;
+    private Sound loseSfx;
+
     @Override
     public void create() {
         preloadAssets();
@@ -106,6 +110,9 @@ public class Core extends Game {
             giveCard2Sfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/GiveCard2.mp3"));
             givePowerupSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/GivePowerup.mp3"));
             buttonSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/HoverButtonMenu.mp3"));
+            gunshotSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/gunshot2.mp3"));
+            winSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/win2.mp3"));
+            loseSfx = Gdx.audio.newSound(Gdx.files.internal("Audio/SFX/lose1.mp3"));
             Gdx.app.log("Audio", "Loaded all Audios");
         } catch (Exception e) {
             Gdx.app.error("Core", "Error loading audio", e);
@@ -575,6 +582,18 @@ public class Core extends Game {
 
     public void playButtonSfx() {
         if (buttonSfx != null) buttonSfx.play(sfxVolume);
+    }
+
+    public void playGunshotSfx() {
+        if (gunshotSfx != null) gunshotSfx.play(sfxVolume);
+    }
+
+    public void playWinSfx() {
+        if (winSfx != null) winSfx.play(sfxVolume);
+    }
+
+    public void playLoseSfx() {
+        if (loseSfx != null) loseSfx.play(sfxVolume);
     }
 
     private float clamp01(float v) {
