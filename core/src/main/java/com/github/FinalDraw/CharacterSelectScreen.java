@@ -24,6 +24,7 @@ public class CharacterSelectScreen implements Screen {
     private Array<Rectangle> slotBounds;
     private int hoveredSlot  = -1;
     private int selectedSlot = -1;
+    private int[] profileRanks; // Rank for each profile (1-indexed)
 
     // Global action buttons (bottom of screen)
     private Rectangle deleteButtonBounds;
@@ -106,8 +107,56 @@ public class CharacterSelectScreen implements Screen {
         batch  = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
+        updateRanks();
         updateButtonPositions();
         game.playMenuMusic();
+    }
+
+    private void updateRanks() {
+        profileRanks = new int[TOTAL_SLOTS];
+        Array<Core.SaveProfile> profiles = game.getAllProfiles();
+        
+        // Use a simple score: total unlocked stages across all difficulties
+        // profiles are 1-indexed for the game logic, but 0-indexed in the array
+        class ProfileScore implements Comparable<ProfileScore> {
+            int slot;
+            int score;
+
+            public ProfileScore(int slot, int score) {
+                this.slot = slot;
+                this.score = score;
+            }
+
+            @Override
+            public int compareTo(ProfileScore other) {
+                // Higher score first
+                return Integer.compare(other.score, this.score);
+            }
+        }
+
+        Array<ProfileScore> scores = new Array<>();
+        for (int i = 0; i < profiles.size; i++) {
+            Core.SaveProfile p = profiles.get(i);
+            if (p != null && p.exists()) {
+                int score = p.easyUnlocked + p.mediumUnlocked + p.hardUnlocked;
+                scores.add(new ProfileScore(i, score));
+            }
+        }
+
+        scores.sort();
+
+        // Assign ranks based on sorted scores
+        for (int i = 0; i < scores.size; i++) {
+            int currentSlot = scores.get(i).slot;
+            int currentScore = scores.get(i).score;
+            
+            // Check for ties — if same score as previous, same rank
+            if (i > 0 && currentScore == scores.get(i - 1).score) {
+                profileRanks[currentSlot] = profileRanks[scores.get(i - 1).slot];
+            } else {
+                profileRanks[currentSlot] = i + 1;
+            }
+        }
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────
@@ -356,6 +405,7 @@ public class CharacterSelectScreen implements Screen {
                 game.playButtonSfx();
                 if (slotToDelete > 0) {
                     game.deleteProfile(slotToDelete);
+                    updateRanks(); // Refresh leaderboard
                     selectedSlot = -1;
                 }
                 showDeleteConfirm = false;
@@ -389,12 +439,29 @@ public class CharacterSelectScreen implements Screen {
         game.bodyFont.setColor(SLOT_NUM_COL);
         game.bodyFont.draw(batch, "SLOT " + (idx + 1), r.x + pad, topY);
 
+        // Leaderboard rank (rightmost side, centered vertically in the top area)
+        if (profileRanks != null && profileRanks[idx] > 0) {
+            String rankStr = "#" + profileRanks[idx];
+            game.titleFont.setColor(GOLD);
+            float prevScaleX = game.titleFont.getData().scaleX;
+            float prevScaleY = game.titleFont.getData().scaleY;
+            game.titleFont.getData().setScale(0.45f); // Smaller for the slot
+            layout.setText(game.titleFont, rankStr);
+            game.titleFont.draw(batch, rankStr, r.x + r.width - pad - layout.width, r.y + r.height / 2f + layout.height / 2f);
+            game.titleFont.getData().setScale(prevScaleX, prevScaleY);
+        }
+
         // "SELECTED" badge (top-right) when selected
         if (selected) {
             game.bodyFont.setColor(GOLD_DIM);
             String badge = "SELECTED";
             layout.setText(game.bodyFont, badge);
-            game.bodyFont.draw(batch, badge, r.x + r.width - pad - layout.width, topY);
+            // Offset from the rank if rank exists
+            float badgeX = r.x + r.width - pad - layout.width;
+            if (profileRanks != null && profileRanks[idx] > 0) {
+                badgeX -= 60f; // Move left to avoid overlap with rank
+            }
+            game.bodyFont.draw(batch, badge, badgeX, topY);
         }
 
         // Character name — centre-left, smaller and brighter for contrast
