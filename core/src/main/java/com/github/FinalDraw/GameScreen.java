@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 
@@ -32,6 +33,7 @@ public class GameScreen implements Screen {
 
     private final Core game;
     private SpriteBatch batch;
+    private ShapeRenderer shapeRenderer;
     private GlyphLayout layout;
     private float layoutScale;
     private float layoutOffsetX;
@@ -283,6 +285,7 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
         ShaderProgram.pedantic = false;
         cardShader = new ShaderProgram(
@@ -1324,17 +1327,34 @@ public class GameScreen implements Screen {
             batch.setColor(0f, 0f, 0f, 0.50f);
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
             batch.setColor(Color.WHITE);
+            batch.end();
 
-            // Draw options panel background
+            // Draw rounded black background panel with outline
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+            
+            // Rounded black background
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(0, 0, 0, 0.85f);
+            drawRoundedRect(shapeRenderer, sx(optionsPanelBounds.x), sy(optionsPanelBounds.y), ss(optionsPanelBounds.width), ss(optionsPanelBounds.height), 20f);
+            shapeRenderer.end();
+
+            // Thick black outline
+            Gdx.gl.glLineWidth(3.0f);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.BLACK);
+            drawRoundedRectOutline(shapeRenderer, sx(optionsPanelBounds.x), sy(optionsPanelBounds.y), ss(optionsPanelBounds.width), ss(optionsPanelBounds.height), 20f);
+            shapeRenderer.end();
+            Gdx.gl.glLineWidth(1.0f);
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+
+            batch.begin();
+            // Draw options panel background - removed old code
             float panelWidth = optionsPanelBounds.width;
             float panelHeight = optionsPanelBounds.height;
             float panelX = optionsPanelBounds.x;
             float panelY = optionsPanelBounds.y;
-            batch.setColor(0.08f, 0.08f, 0.08f, 0.95f);
-            batch.draw(solidPixel, sx(panelX), sy(panelY), ss(panelWidth), ss(panelHeight));
-            batch.setColor(0.55f, 0.12f, 0.10f, 1f);
-            batch.draw(solidPixel, sx(panelX + 4f), sy(panelY + panelHeight - 48f), ss(panelWidth - 8f), ss(36f));
-            batch.setColor(Color.WHITE);
 
             float optionsPrevTitleScaleX = game.titleFont.getData().scaleX;
             float optionsPrevTitleScaleY = game.titleFont.getData().scaleY;
@@ -1349,18 +1369,11 @@ public class GameScreen implements Screen {
             game.bodyFont.getData().setScale(layoutScale * 0.95f);
             game.bodyFont.setColor(Color.WHITE);
 
-            batch.setColor(0.16f, 0.16f, 0.16f, 1f);
-            batch.draw(solidPixel, sx(optionsContinueBounds.x), sy(optionsContinueBounds.y), ss(optionsContinueBounds.width), ss(optionsContinueBounds.height));
-            batch.draw(solidPixel, sx(optionsHomeBounds.x), sy(optionsHomeBounds.y), ss(optionsHomeBounds.width), ss(optionsHomeBounds.height));
-            batch.setColor(0.62f, 0.10f, 0.08f, 1f);
-            batch.draw(solidPixel, sx(optionsContinueBounds.x), sy(optionsContinueBounds.y + optionsContinueBounds.height - 6f), ss(optionsContinueBounds.width), ss(6f));
-            batch.draw(solidPixel, sx(optionsHomeBounds.x), sy(optionsHomeBounds.y + optionsHomeBounds.height - 6f), ss(optionsHomeBounds.width), ss(6f));
-            batch.setColor(Color.WHITE);
-
+            // Draw button text labels only
             layout.setText(game.bodyFont, "Continue");
-            game.bodyFont.draw(batch, "Continue", sx(optionsContinueBounds.x + (optionsContinueBounds.width - layout.width) / 2f), sy(optionsContinueBounds.y + 30f));
+            game.bodyFont.draw(batch, "Continue", sx(optionsContinueBounds.x + (optionsContinueBounds.width - layout.width) / 2f), sy(optionsContinueBounds.y + 10f));
             layout.setText(game.bodyFont, "Exit");
-            game.bodyFont.draw(batch, "Exit", sx(optionsHomeBounds.x + (optionsHomeBounds.width - layout.width) / 2f), sy(optionsHomeBounds.y + 30f));
+            game.bodyFont.draw(batch, "Exit", sx(optionsHomeBounds.x + (optionsHomeBounds.width - layout.width) / 2f), sy(optionsHomeBounds.y + 10f));
 
             game.bodyFont.getData().setScale(optionsPrevBodyScaleX, optionsPrevBodyScaleY);
         }
@@ -1368,14 +1381,34 @@ public class GameScreen implements Screen {
         if (isQuitConfirmOpen && solidPixel != null) {
             batch.setColor(0f, 0f, 0f, 0.50f);
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
-            batch.setColor(0.12f, 0.12f, 0.12f, 0.95f);
-            batch.draw(solidPixel, sx(quitConfirmPanelBounds.x), sy(quitConfirmPanelBounds.y), ss(quitConfirmPanelBounds.width), ss(quitConfirmPanelBounds.height));
             batch.setColor(Color.WHITE);
+            batch.end();
 
+            // Draw rounded black background panel with outline
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+            
+            // Rounded black background
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(0, 0, 0, 0.85f);
+            drawRoundedRect(shapeRenderer, sx(quitConfirmPanelBounds.x), sy(quitConfirmPanelBounds.y), ss(quitConfirmPanelBounds.width), ss(quitConfirmPanelBounds.height), 20f);
+            shapeRenderer.end();
+
+            // Thick black outline
+            Gdx.gl.glLineWidth(3.0f);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.BLACK);
+            drawRoundedRectOutline(shapeRenderer, sx(quitConfirmPanelBounds.x), sy(quitConfirmPanelBounds.y), ss(quitConfirmPanelBounds.width), ss(quitConfirmPanelBounds.height), 20f);
+            shapeRenderer.end();
+            Gdx.gl.glLineWidth(1.0f);
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+
+            batch.begin();
+            game.titleFont.setColor(Color.WHITE);
             float prevScaleX = game.titleFont.getData().scaleX;
             float prevScaleY = game.titleFont.getData().scaleY;
             game.titleFont.getData().setScale(layoutScale * 0.55f);
-            game.titleFont.setColor(Color.WHITE);
             String prompt = "Do you want to quit?";
             layout.setText(game.titleFont, prompt);
             game.titleFont.draw(batch, prompt, sx(quitConfirmPanelBounds.x + quitConfirmPanelBounds.width / 2f) - layout.width / 2f, sy(quitConfirmPanelBounds.y + quitConfirmPanelBounds.height - 35f));
@@ -1385,11 +1418,6 @@ public class GameScreen implements Screen {
             float prevBodyScaleY = game.bodyFont.getData().scaleY;
             game.bodyFont.getData().setScale(layoutScale * 0.9f);
             game.bodyFont.setColor(Color.WHITE);
-
-            batch.setColor(0.25f, 0.25f, 0.25f, 0.95f);
-            batch.draw(solidPixel, sx(quitYesBounds.x), sy(quitYesBounds.y), ss(quitYesBounds.width), ss(quitYesBounds.height));
-            batch.draw(solidPixel, sx(quitNoBounds.x), sy(quitNoBounds.y), ss(quitNoBounds.width), ss(quitNoBounds.height));
-            batch.setColor(Color.WHITE);
 
             layout.setText(game.bodyFont, "Yes");
             game.bodyFont.draw(batch, "Yes", sx(quitYesBounds.x + (quitYesBounds.width - layout.width) / 2f), sy(quitYesBounds.y + 34f));
@@ -1403,7 +1431,29 @@ public class GameScreen implements Screen {
         if (isMatchEndOpen && solidPixel != null) {
             batch.setColor(0f, 0f, 0f, 0.70f);
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
+            batch.end();
 
+            // Draw rounded black background panel with outline
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+            
+            // Rounded black background
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(0, 0, 0, 0.85f);
+            drawRoundedRect(shapeRenderer, sx(matchEndPanelBounds.x), sy(matchEndPanelBounds.y), ss(matchEndPanelBounds.width), ss(matchEndPanelBounds.height), 20f);
+            shapeRenderer.end();
+
+            // Thick black outline
+            Gdx.gl.glLineWidth(3.0f);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.BLACK);
+            drawRoundedRectOutline(shapeRenderer, sx(matchEndPanelBounds.x), sy(matchEndPanelBounds.y), ss(matchEndPanelBounds.width), ss(matchEndPanelBounds.height), 20f);
+            shapeRenderer.end();
+            Gdx.gl.glLineWidth(1.0f);
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+
+            batch.begin();
             float matchPrevTitleScaleX = game.titleFont.getData().scaleX;
             float matchPrevTitleScaleY = game.titleFont.getData().scaleY;
             game.titleFont.getData().setScale(layoutScale * 0.95f);
@@ -1418,18 +1468,6 @@ public class GameScreen implements Screen {
             float prevBodyScaleX = game.bodyFont.getData().scaleX;
             float prevBodyScaleY = game.bodyFont.getData().scaleY;
             game.bodyFont.getData().setScale(layoutScale * 0.9f);
-
-            // Draw match end panel background - large dark grey rectangle
-            batch.setColor(0.15f, 0.15f, 0.15f, 0.92f);
-            batch.draw(solidPixel, sx(matchEndPanelBounds.x), sy(matchEndPanelBounds.y), ss(matchEndPanelBounds.width), ss(matchEndPanelBounds.height));
-            batch.setColor(Color.WHITE);
-
-            // Draw button rectangles (darker for each button)
-            batch.setColor(0.10f, 0.10f, 0.10f, 0.85f);
-            batch.draw(solidPixel, sx(matchEndRestartBounds.x), sy(matchEndRestartBounds.y), ss(matchEndRestartBounds.width), ss(matchEndRestartBounds.height));
-            batch.draw(solidPixel, sx(matchEndChangeLevelBounds.x), sy(matchEndChangeLevelBounds.y), ss(matchEndChangeLevelBounds.width), ss(matchEndChangeLevelBounds.height));
-            batch.draw(solidPixel, sx(matchEndExitBounds.x), sy(matchEndExitBounds.y), ss(matchEndExitBounds.width), ss(matchEndExitBounds.height));
-            batch.setColor(Color.WHITE);
 
             // Draw button text labels
             game.bodyFont.setColor(Color.WHITE);
@@ -1455,7 +1493,29 @@ public class GameScreen implements Screen {
         if (isLevelSelectOpen) {
             batch.setColor(0f, 0f, 0f, 0.70f);
             batch.draw(solidPixel, sx(0), sy(0), ss(REF_W), ss(REF_H));
+            batch.end();
 
+            // Draw rounded black background panel with outline
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+            
+            // Rounded black background
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(0, 0, 0, 0.85f);
+            drawRoundedRect(shapeRenderer, sx(levelSelectPanelBounds.x), sy(levelSelectPanelBounds.y), ss(levelSelectPanelBounds.width), ss(levelSelectPanelBounds.height), 20f);
+            shapeRenderer.end();
+
+            // Thick black outline
+            Gdx.gl.glLineWidth(3.0f);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.BLACK);
+            drawRoundedRectOutline(shapeRenderer, sx(levelSelectPanelBounds.x), sy(levelSelectPanelBounds.y), ss(levelSelectPanelBounds.width), ss(levelSelectPanelBounds.height), 20f);
+            shapeRenderer.end();
+            Gdx.gl.glLineWidth(1.0f);
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+
+            batch.begin();
             float levelPrevTitleScaleX = game.titleFont.getData().scaleX;
             float levelPrevTitleScaleY = game.titleFont.getData().scaleY;
             game.titleFont.getData().setScale(layoutScale * 0.95f);
@@ -1470,18 +1530,6 @@ public class GameScreen implements Screen {
             float levelPrevBodyScaleX = game.bodyFont.getData().scaleX;
             float levelPrevBodyScaleY = game.bodyFont.getData().scaleY;
             game.bodyFont.getData().setScale(layoutScale * 0.9f);
-
-            // Draw level select panel background
-            batch.setColor(0.15f, 0.15f, 0.15f, 0.92f);
-            batch.draw(solidPixel, sx(levelSelectPanelBounds.x), sy(levelSelectPanelBounds.y), ss(levelSelectPanelBounds.width), ss(levelSelectPanelBounds.height));
-            batch.setColor(Color.WHITE);
-
-            // Draw button rectangles (darker for each button)
-            batch.setColor(0.10f, 0.10f, 0.10f, 0.85f);
-            batch.draw(solidPixel, sx(levelEasyBounds.x), sy(levelEasyBounds.y), ss(levelEasyBounds.width), ss(levelEasyBounds.height));
-            batch.draw(solidPixel, sx(levelMediumBounds.x), sy(levelMediumBounds.y), ss(levelMediumBounds.width), ss(levelMediumBounds.height));
-            batch.draw(solidPixel, sx(levelHardBounds.x), sy(levelHardBounds.y), ss(levelHardBounds.width), ss(levelHardBounds.height));
-            batch.setColor(Color.WHITE);
 
             // Draw button text labels
             game.bodyFont.setColor(Color.WHITE);
@@ -2100,10 +2148,50 @@ public class GameScreen implements Screen {
         game.playMenuMusic();
     }
 
+    private void drawRoundedRect(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.rect(x + radius, y, width - 2 * radius, height);
+        renderer.rect(x, y + radius, radius, height - 2 * radius);
+        renderer.rect(x + width - radius, y + radius, radius, height - 2 * radius);
+        renderer.arc(x + radius, y + radius, radius, 180, 90);
+        renderer.arc(x + width - radius, y + radius, radius, 270, 90);
+        renderer.arc(x + width - radius, y + height - radius, radius, 0, 90);
+        renderer.arc(x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawRoundedRectOutline(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.line(x + radius, y, x + width - radius, y);
+        renderer.line(x + radius, y + height, x + width - radius, y + height);
+        renderer.line(x, y + radius, x, y + height - radius);
+        renderer.line(x + width, y + radius, x + width, y + height - radius);
+        drawArcOnly(renderer, x + radius, y + radius, radius, 180, 90);
+        drawArcOnly(renderer, x + width - radius, y + radius, radius, 270, 90);
+        drawArcOnly(renderer, x + width - radius, y + height - radius, radius, 0, 90);
+        drawArcOnly(renderer, x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawArcOnly(ShapeRenderer renderer, float x, float y, float radius, float start, float degrees) {
+        int segments = 20;
+        float step = degrees / segments;
+        for (int i = 0; i < segments; i++) {
+            float angle1 = (float) Math.toRadians(start + i * step);
+            float angle2 = (float) Math.toRadians(start + (i + 1) * step);
+            renderer.line(
+                x + (float) Math.cos(angle1) * radius,
+                y + (float) Math.sin(angle1) * radius,
+                x + (float) Math.cos(angle2) * radius,
+                y + (float) Math.sin(angle2) * radius
+            );
+        }
+    }
+
     @Override
     public void dispose() {
         if (batch != null) {
             batch.dispose();
+        }
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
+            shapeRenderer = null;
         }
         if (ownsGameBgTexture && gameBg != null) {
             gameBg.dispose();

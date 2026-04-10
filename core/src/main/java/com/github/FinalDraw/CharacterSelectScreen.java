@@ -6,12 +6,14 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 
 public class CharacterSelectScreen implements Screen {
     private final Core game;
     private SpriteBatch batch;
+    private ShapeRenderer shapeRenderer;
     private GlyphLayout layout;
 
     // Profile slots (2 columns × 5 rows = 10 slots)
@@ -102,6 +104,7 @@ public class CharacterSelectScreen implements Screen {
     @Override
     public void show() {
         batch  = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
         updateButtonPositions();
         game.playMenuMusic();
@@ -180,46 +183,6 @@ public class CharacterSelectScreen implements Screen {
         float W = Gdx.graphics.getWidth();
         float H = Gdx.graphics.getHeight();
 
-        batch.begin();
-
-        // ── Background ────────────────────────────────────────────────────────
-        // Base dark layer
-        batch.setColor(BG_DEEP);
-        batch.draw(game.backgroundRectangle, 0, 0, W, H);
-
-        // Static background texture (pattern/diamond weave) at very low alpha
-        batch.setColor(1f, 1f, 1f, 0.06f);
-        batch.draw(game.backgroundStatic, 0, 0, W, H);
-
-        // Vignette shadow overlay
-        batch.setColor(Color.WHITE);
-        batch.draw(game.shadow, 0, 0, W, H);
-
-        // ── Title ─────────────────────────────────────────────────────────────
-        game.titleFont.setColor(GOLD);
-        String title = "SELECT CHARACTER";
-        layout.setText(game.titleFont, title);
-        float titleX = (W - layout.width) / 2f;
-        float titleY = H - 28f;
-        game.titleFont.draw(batch, title, titleX, titleY);
-
-        // Ornamental divider line + gem below title
-        float divY    = H - 52f;
-        float gemSize = 6f;
-        float gemHalf = gemSize / 2f;
-        float lineY   = divY + gemHalf;
-
-        batch.setColor(DIV_LINE);
-        // Left line
-        batch.draw(game.backgroundRectangle, W * 0.08f, lineY, (W / 2f - W * 0.08f - gemHalf - 6f), 1f);
-        // Right line
-        batch.draw(game.backgroundRectangle, W / 2f + gemHalf + 6f, lineY, (W * 0.92f - W / 2f - gemHalf - 6f), 1f);
-        // Diamond gem (rotated square approximated with two overlapping rects)
-        batch.setColor(GEM_COLOR);
-        batch.draw(game.backgroundRectangle, W / 2f - gemHalf, divY, gemSize, gemSize);
-
-        batch.setColor(Color.WHITE);
-
         // ── Mouse ─────────────────────────────────────────────────────────────
         float mouseX = Gdx.input.getX();
         float mouseY = H - Gdx.input.getY();
@@ -232,41 +195,92 @@ public class CharacterSelectScreen implements Screen {
             }
         }
 
-        // ── Slots ─────────────────────────────────────────────────────────────
+        batch.begin();
+        // Use only Background.png for background
+        batch.draw(game.backgroundStatic, 0, 0, W, H);
+
+        // ── Title ─────────────────────────────────────────────────────────────
+        game.titleFont.setColor(GOLD);
+        String title = "SELECT CHARACTER";
+        layout.setText(game.titleFont, title);
+        float titleX = (W - layout.width) / 2f;
+        float titleY = H - 28f;
+        game.titleFont.draw(batch, title, titleX, titleY);
+        batch.end();
+
+        // ── Draw Slots using ShapeRenderer ────────────────────────────────────
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+        
+        // Fill pass
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            Rectangle r = slotBounds.get(i);
+            boolean isSelected = (i == selectedSlot);
+            
+            if (isSelected) {
+                // Yellow with opacity if selected
+                shapeRenderer.setColor(1f, 1f, 0f, 0.3f);
+                drawRoundedRect(shapeRenderer, r.x, r.y, r.width, r.height, 10f);
+            } else {
+                // Default slot background (dark with some opacity)
+                shapeRenderer.setColor(0f, 0f, 0f, 0.6f);
+                drawRoundedRect(shapeRenderer, r.x, r.y, r.width, r.height, 10f);
+            }
+        }
+        shapeRenderer.end();
+
+        // Outline pass
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        Gdx.gl.glLineWidth(3.0f);
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            Rectangle r = slotBounds.get(i);
+            boolean isSelected = (i == selectedSlot);
+            
+            if (isSelected) {
+                shapeRenderer.setColor(Color.YELLOW);
+            } else {
+                shapeRenderer.setColor(Color.BLACK);
+            }
+            drawRoundedRectOutline(shapeRenderer, r.x, r.y, r.width, r.height, 10f);
+        }
+        shapeRenderer.end();
+        Gdx.gl.glLineWidth(1.0f);
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        batch.begin();
+        // Ornamental divider line + gem below title
+        float divY    = H - 52f;
+        float gemSize = 6f;
+        float gemHalf = gemSize / 2f;
+        float lineY   = divY + gemHalf;
+
+        batch.setColor(DIV_LINE);
+        // Left line
+        batch.draw(game.backgroundRectangle, W * 0.08f, lineY, (W / 2f - W * 0.08f - gemHalf - 6f), 1f);
+        // Right line
+        batch.draw(game.backgroundRectangle, W / 2f + gemHalf + 6f, lineY, (W * 0.92f - W / 2f - gemHalf - 6f), 1f);
+        // Diamond gem
+        batch.setColor(GEM_COLOR);
+        batch.draw(game.backgroundRectangle, W / 2f - gemHalf, divY, gemSize, gemSize);
+        batch.setColor(Color.WHITE);
+
+        // ── Slot list ─────────────────────────────────────────────────────────
         Array<Core.SaveProfile> profiles = game.getAllProfiles();
 
         for (int i = 0; i < TOTAL_SLOTS; i++) {
-            Rectangle r         = slotBounds.get(i);
-            boolean   isHovered  = (i == hoveredSlot);
+            Rectangle r          = slotBounds.get(i);
             boolean   isSelected = (i == selectedSlot);
 
             Core.SaveProfile profile      = i < profiles.size ? profiles.get(i) : null;
             boolean          profileExists = profile != null && profile.exists();
 
-            // Fill
-            Color fillCol = isSelected ? SLOT_SEL : (isHovered ? SLOT_HOVER : SLOT_NORMAL);
-            batch.setColor(fillCol);
-            batch.draw(game.backgroundRectangle, r.x, r.y, r.width, r.height);
-
-            // Border
-            Color borderCol = isSelected ? BORDER_SEL : (isHovered ? BORDER_HOVER : BORDER_NORM);
-            float bt        = isSelected ? 1.5f : 1f;
-            batch.setColor(borderCol);
-            drawBorder(r, bt);
-
-            // Inner corner accent for selected (double-border)
-            if (isSelected) {
-                batch.setColor(GOLD_DIM);
-                Rectangle inner = new Rectangle(r.x + 3f, r.y + 3f, r.width - 6f, r.height - 6f);
-                drawBorder(inner, 0.5f);
-            }
-
-            batch.setColor(Color.WHITE);
-
             // Content
             if (profileExists) {
                 drawProfileSlot(r, profile, i, isSelected);
             } else {
+                boolean isHovered = (i == hoveredSlot);
                 drawEmptySlot(r, i, isHovered);
             }
         }
@@ -434,12 +448,14 @@ public class CharacterSelectScreen implements Screen {
         game.bodyFont.setColor(EMPTY_LABEL);
         String label = "EMPTY SLOT";
         layout.setText(game.bodyFont, label);
-        game.bodyFont.draw(batch, label, cx - layout.width / 2f, cy - 18f);
+        game.bodyFont.draw(batch, label, cx - layout.width / 2f, cy + layout.height / 2f + 10f);
 
         game.bodyFont.setColor(EMPTY_HINT);
+        game.bodyFont.getData().setScale(0.8f); // Make text smaller
         String hint = "Click to create character";
         layout.setText(game.bodyFont, hint);
-        game.bodyFont.draw(batch, hint, cx - layout.width / 2f, cy - 36f);
+        game.bodyFont.draw(batch, hint, cx - layout.width / 2f, cy - layout.height / 2f - 10f);
+        game.bodyFont.getData().setScale(1.0f); // Reset scale
 
         batch.setColor(Color.WHITE);
     }
@@ -549,6 +565,42 @@ public class CharacterSelectScreen implements Screen {
 
     // ── Screen lifecycle ──────────────────────────────────────────────────────
 
+    private void drawRoundedRect(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.rect(x + radius, y, width - 2 * radius, height);
+        renderer.rect(x, y + radius, radius, height - 2 * radius);
+        renderer.rect(x + width - radius, y + radius, radius, height - 2 * radius);
+        renderer.arc(x + radius, y + radius, radius, 180, 90);
+        renderer.arc(x + width - radius, y + radius, radius, 270, 90);
+        renderer.arc(x + width - radius, y + height - radius, radius, 0, 90);
+        renderer.arc(x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawRoundedRectOutline(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.line(x + radius, y, x + width - radius, y);
+        renderer.line(x + radius, y + height, x + width - radius, y + height);
+        renderer.line(x, y + radius, x, y + height - radius);
+        renderer.line(x + width, y + radius, x + width, y + height - radius);
+        drawArcOnly(renderer, x + radius, y + radius, radius, 180, 90);
+        drawArcOnly(renderer, x + width - radius, y + radius, radius, 270, 90);
+        drawArcOnly(renderer, x + width - radius, y + height - radius, radius, 0, 90);
+        drawArcOnly(renderer, x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawArcOnly(ShapeRenderer renderer, float x, float y, float radius, float start, float degrees) {
+        int segments = 20;
+        float step = degrees / segments;
+        for (int i = 0; i < segments; i++) {
+            float angle1 = (float) Math.toRadians(start + i * step);
+            float angle2 = (float) Math.toRadians(start + (i + 1) * step);
+            renderer.line(
+                x + (float) Math.cos(angle1) * radius,
+                y + (float) Math.sin(angle1) * radius,
+                x + (float) Math.cos(angle2) * radius,
+                y + (float) Math.sin(angle2) * radius
+            );
+        }
+    }
+
     @Override
     public void resize(int width, int height) {
         if (width > 0 && height > 0) updateButtonPositions();
@@ -561,5 +613,6 @@ public class CharacterSelectScreen implements Screen {
     @Override
     public void dispose() {
         batch.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
     }
 }

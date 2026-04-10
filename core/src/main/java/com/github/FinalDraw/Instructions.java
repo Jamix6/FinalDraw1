@@ -6,12 +6,17 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 
 public class Instructions implements Screen {
     private final Core game;
     private SpriteBatch batch;
+    private ShapeRenderer shapeRenderer;
     private GlyphLayout layout;
+
+    // Background panel
+    private Rectangle contentPanelBounds;
 
     // Navigation
     private int currentPage = 0;
@@ -44,29 +49,27 @@ public class Instructions implements Screen {
             "- If both players have the same score, it's a draw."
         },
         {
-            "- The cards in the deck are numbered from 1 to 11,",
-            "all cards are unique so there are no repetitions.",
-            "",
-            "- It is impossible to draw the same card that is",
-            "already placed on the table."
+ "- The cards in the deck are numbered from 1 to 11,", 
+"all cards are unique so there are no repetitions.", 
+"", 
+"- It is impossible to draw the same card that is", 
+"already placed on the table." 
         },
         {
-            "- Player takes 2 random cards, the first card is",
-            "turned over and the opponent cannot see the",
-            "number on it.",
+            "- Player takes 2 random cards, the first card is turned over and the opponent",
+            "cannot see the number on it.",
             "",
             "- The player draws a card or passes on his turn.",
-            "The game continues until both players pass.",
+            "- The game continues until both players pass.",
             "",
-            "- After both players pass, they turn over the",
-            "cards to determine the winner."
+            "- After both players pass, they turn over thecards to determine the winner.",
+            ""
         },
         {
             "Go for 17: Changes the target from 21 to 17 for BOTH.",
             "Go for 24: Changes the target from 21 to 24 for BOTH.",
             "Protection: Grants 2 Shield that lasts for 2 rounds.",
             "Removal: Removes all drawn cards except hidden card.",
-            "",
             "Reshuffle: Shuffles your entire deck including hidden.",
             "Double Down: Raises the risk (health loss) by 1.",
             "Foresight: Reveals the next card you will draw."
@@ -81,8 +84,8 @@ public class Instructions implements Screen {
             "Clear: Removes all used powerups/debuffs this round."
         },
         {
-            "- The distance of your demise is determined by",
-            "the RISK. The risk changes every round.",
+            "- The distance of your demise is determined by the RISK. The risk changes every round.",
+        
             "",
             "- The risk can be seen as your health bar.",
             "",
@@ -99,6 +102,7 @@ public class Instructions implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
 
         updateButtonPositions();
@@ -107,8 +111,18 @@ public class Instructions implements Screen {
 
     private void updateButtonPositions() {
         float screenWidth = Gdx.graphics.getWidth();
+        float screenHeight = Gdx.graphics.getHeight();
         float buttonY = 80;
         float buttonHeight = 50;
+
+        // Content panel bounds
+        float panelW = screenWidth - 200f;
+        float panelH = screenHeight - 300f;
+        contentPanelBounds = new Rectangle(
+            (screenWidth - panelW) / 2f,
+            (screenHeight - panelH) / 2f + 40f,
+            panelW, panelH
+        );
 
         // Previous button (left)
         prevButton = new Rectangle(50, buttonY, 120, buttonHeight);
@@ -129,7 +143,6 @@ public class Instructions implements Screen {
 
         // Draw static background & shadow
         batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        batch.draw(game.backgroundRectangle, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.draw(game.shadow, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         // Draw main title
@@ -138,27 +151,76 @@ public class Instructions implements Screen {
         game.titleFont.draw(batch, "INSTRUCTIONS",
             (Gdx.graphics.getWidth() - layout.width) / 2,
             Gdx.graphics.getHeight() - 50);
+        batch.end();
 
+        // Draw black box background
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+        
+        // Rounded black box
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0, 0, 0, 0.7f);
+        drawRoundedRect(shapeRenderer, contentPanelBounds.x, contentPanelBounds.y, contentPanelBounds.width, contentPanelBounds.height, 20f);
+        shapeRenderer.end();
 
+        // Thick black outline
+        Gdx.gl.glLineWidth(3.0f);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(Color.BLACK);
+        drawRoundedRectOutline(shapeRenderer, contentPanelBounds.x, contentPanelBounds.y, contentPanelBounds.width, contentPanelBounds.height, 20f);
+        shapeRenderer.end();
+        Gdx.gl.glLineWidth(1.0f);
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        batch.begin();
         float contentY = Gdx.graphics.getHeight() - 150;
         float lineHeight = 35;
+        float maxTextWidth = contentPanelBounds.width - 60f;
 
         // Draw page title
         game.titleFont.setColor(Color.WHITE);
         layout.setText(game.titleFont, PAGE_TITLES[currentPage]);
+        float originalTitleScaleX = game.titleFont.getData().scaleX;
+        float originalTitleScaleY = game.titleFont.getData().scaleY;
+
+        // Scale down title if too wide
+        if (layout.width > maxTextWidth) {
+            float scale = maxTextWidth / layout.width;
+            game.titleFont.getData().setScale(originalTitleScaleX * scale, originalTitleScaleY * scale);
+            layout.setText(game.titleFont, PAGE_TITLES[currentPage]);
+        }
+
         game.titleFont.draw(batch, PAGE_TITLES[currentPage],
             (Gdx.graphics.getWidth() - layout.width) / 2,
             contentY);
+        
+        // Reset title font scale
+        game.titleFont.getData().setScale(originalTitleScaleX, originalTitleScaleY);
 
         // Draw page content
         game.bodyFont.setColor(Color.WHITE);
         contentY -= 120;
+        float originalScaleX = game.bodyFont.getData().scaleX;
+        float originalScaleY = game.bodyFont.getData().scaleY;
+
         for (String line : PAGE_CONTENT[currentPage]) {
             if (!line.isEmpty()) {
                 layout.setText(game.bodyFont, line);
+                
+                // Scale down if text is too wide
+                if (layout.width > maxTextWidth) {
+                    float scale = maxTextWidth / layout.width;
+                    game.bodyFont.getData().setScale(originalScaleX * scale, originalScaleY * scale);
+                    layout.setText(game.bodyFont, line); // Recalculate layout with new scale
+                }
+
                 game.bodyFont.draw(batch, line,
                     (Gdx.graphics.getWidth() - layout.width) / 2,
                     contentY);
+                
+                // Reset scale for next line
+                game.bodyFont.getData().setScale(originalScaleX, originalScaleY);
             }
             contentY -= lineHeight;
         }
@@ -243,6 +305,45 @@ public class Instructions implements Screen {
     @Override
     public void dispose() {
         batch.dispose();
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
+        }
+    }
+
+    private void drawRoundedRect(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.rect(x + radius, y, width - 2 * radius, height);
+        renderer.rect(x, y + radius, radius, height - 2 * radius);
+        renderer.rect(x + width - radius, y + radius, radius, height - 2 * radius);
+        renderer.arc(x + radius, y + radius, radius, 180, 90);
+        renderer.arc(x + width - radius, y + radius, radius, 270, 90);
+        renderer.arc(x + width - radius, y + height - radius, radius, 0, 90);
+        renderer.arc(x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawRoundedRectOutline(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.line(x + radius, y, x + width - radius, y);
+        renderer.line(x + radius, y + height, x + width - radius, y + height);
+        renderer.line(x, y + radius, x, y + height - radius);
+        renderer.line(x + width, y + radius, x + width, y + height - radius);
+        drawArcOnly(renderer, x + radius, y + radius, radius, 180, 90);
+        drawArcOnly(renderer, x + width - radius, y + radius, radius, 270, 90);
+        drawArcOnly(renderer, x + width - radius, y + height - radius, radius, 0, 90);
+        drawArcOnly(renderer, x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawArcOnly(ShapeRenderer renderer, float x, float y, float radius, float start, float degrees) {
+        int segments = 20;
+        float step = degrees / segments;
+        for (int i = 0; i < segments; i++) {
+            float angle1 = (float) Math.toRadians(start + i * step);
+            float angle2 = (float) Math.toRadians(start + (i + 1) * step);
+            renderer.line(
+                x + (float) Math.cos(angle1) * radius,
+                y + (float) Math.sin(angle1) * radius,
+                x + (float) Math.cos(angle2) * radius,
+                y + (float) Math.sin(angle2) * radius
+            );
+        }
     }
 }
 

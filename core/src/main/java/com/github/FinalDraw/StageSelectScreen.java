@@ -6,13 +6,23 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 
 public class StageSelectScreen implements Screen {
     private final Core game;
     private SpriteBatch batch;
+    private ShapeRenderer shapeRenderer;
     private GlyphLayout layout;
+
+    // Background panel for stages
+    private Rectangle stagePanelBounds;
+
+    // Maroon color for unlocked tiles (clear/transparent)
+    private static final Color MAROON = new Color(0, 0, 0, 0);
+    // Gray color for locked tiles (90% opacity)
+    private static final Color GRAY_90 = new Color(0.5f, 0.5f, 0.5f, 0.9f);
 
     // Stage buttons
     private static final int MAX_STAGES = Core.MAX_STAGES;
@@ -36,6 +46,7 @@ public class StageSelectScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
 
         unlockedStage = game.getUnlockedStage(game.difficulty);
@@ -65,6 +76,15 @@ public class StageSelectScreen implements Screen {
             stageBounds.add(new Rectangle(x, y, buttonSize, buttonSize));
         }
 
+        // Add padding for the stage panel background box
+        float panelPadding = 40f;
+        stagePanelBounds = new Rectangle(
+            gridX - panelPadding,
+            gridY - panelPadding,
+            gridWidth + 2 * panelPadding,
+            gridHeight + 2 * panelPadding
+        );
+
         // Back button at bottom center
         backButton = new Rectangle(screenWidth/2 - 75, 80, 150, 50);
 
@@ -76,20 +96,6 @@ public class StageSelectScreen implements Screen {
     public void render(float delta) {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-        batch.begin();
-
-        // Draw static background (same as Instructions screen)
-        batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        batch.draw(game.backgroundRectangle, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        batch.draw(game.shadow, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-
-        // Draw title (moved higher to make space for stage preview)
-        game.titleFont.setColor(Color.WHITE);
-        layout.setText(game.titleFont, "SELECT STAGE");
-        game.titleFont.draw(batch, "SELECT STAGE",
-            (Gdx.graphics.getWidth() - layout.width) / 2,
-            Gdx.graphics.getHeight() - 25);
 
         // Get mouse position
         float mouseX = Gdx.input.getX();
@@ -104,13 +110,80 @@ public class StageSelectScreen implements Screen {
             }
         }
 
-        // Draw stage buttons
+        batch.begin();
+        // Draw static background (Background.png)
+        batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
+        // Draw title (moved higher to make space for stage preview)
+        game.titleFont.setColor(Color.WHITE);
+        layout.setText(game.titleFont, "SELECT STAGE");
+        game.titleFont.draw(batch, "SELECT STAGE",
+            (Gdx.graphics.getWidth() - layout.width) / 2,
+            Gdx.graphics.getHeight() - 25);
+        batch.end();
+
+        // Draw background panel for levels
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+        
+        // Rounded black background (similar to audio box)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0, 0, 0, 0.7f); 
+        drawRoundedRect(shapeRenderer, stagePanelBounds.x, stagePanelBounds.y, stagePanelBounds.width, stagePanelBounds.height, 20f);
+        shapeRenderer.end();
+
+        // Thick black outline for the panel
+        Gdx.gl.glLineWidth(3.0f);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(Color.BLACK);
+        drawRoundedRectOutline(shapeRenderer, stagePanelBounds.x, stagePanelBounds.y, stagePanelBounds.width, stagePanelBounds.height, 20f);
+        shapeRenderer.end();
+        Gdx.gl.glLineWidth(1.0f);
+
+        // Draw tile backgrounds using ShapeRenderer
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (int i = 0; i < stageBounds.size; i++) {
+            Rectangle bounds = stageBounds.get(i);
+            boolean isUnlocked = (i + 1) <= unlockedStage;
+            
+            if (!isUnlocked) {
+                shapeRenderer.setColor(GRAY_90);
+            } else {
+                shapeRenderer.setColor(MAROON);
+            }
+            drawRoundedRect(shapeRenderer, bounds.x, bounds.y, bounds.width, bounds.height, 15f);
+        }
+        shapeRenderer.end();
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        Gdx.gl.glLineWidth(2.0f);
+        for (int i = 0; i < stageBounds.size; i++) {
+            Rectangle bounds = stageBounds.get(i);
+            boolean isUnlocked = (i + 1) <= unlockedStage;
+            boolean isHovered = (i == hoveredStage);
+            
+            if (!isUnlocked) {
+                shapeRenderer.setColor(Color.DARK_GRAY);
+            } else if (isHovered) {
+                shapeRenderer.setColor(Color.YELLOW);
+            } else {
+                shapeRenderer.setColor(Color.WHITE);
+            }
+            drawRoundedRectOutline(shapeRenderer, bounds.x, bounds.y, bounds.width, bounds.height, 15f);
+        }
+        shapeRenderer.end();
+        Gdx.gl.glLineWidth(1.0f);
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        batch.begin();
+        // Draw stage button text
         for (int i = 0; i < stageBounds.size; i++) {
             Rectangle bounds = stageBounds.get(i);
             boolean isUnlocked = (i + 1) <= unlockedStage;
             boolean isHovered = (i == hoveredStage);
 
-            drawStageButton(bounds, i + 1, isUnlocked, isHovered);
+            drawStageButtonText(bounds, i + 1, isUnlocked, isHovered);
         }
 
         // Draw back button
@@ -169,27 +242,21 @@ public class StageSelectScreen implements Screen {
         }
     }
 
-    private void drawStageButton(Rectangle bounds, int stageNumber, boolean isUnlocked, boolean isHovered) {
-        Color borderColor;
+    private void drawStageButtonText(Rectangle bounds, int stageNumber, boolean isUnlocked, boolean isHovered) {
         Color textColor;
 
         if (!isUnlocked) {
-            borderColor = Color.GRAY;
             textColor = Color.DARK_GRAY;
         } else if (isHovered) {
-            borderColor = Color.YELLOW;
             textColor = Color.YELLOW;
         } else {
-            borderColor = Color.WHITE;
+            // Unlocked but not hovered: use White
             textColor = Color.WHITE;
         }
 
-        // Draw button background
-        game.bodyFont.setColor(borderColor);
+        // Draw Roman numeral
         String romanNumeral = ROMAN_NUMERALS[stageNumber - 1];
         layout.setText(game.bodyFont, romanNumeral);
-
-        // Draw Roman numeral
         game.bodyFont.setColor(textColor);
         game.bodyFont.draw(batch, romanNumeral,
             bounds.x + (bounds.width - layout.width) / 2,
@@ -197,7 +264,7 @@ public class StageSelectScreen implements Screen {
 
         // Draw lock icon for locked stages
         if (!isUnlocked) {
-            game.bodyFont.setColor(Color.GRAY);
+            game.bodyFont.setColor(Color.DARK_GRAY);
             game.bodyFont.draw(batch, "LOCKED",
                 bounds.x + (bounds.width - 60) / 2,
                 bounds.y + 30);
@@ -266,6 +333,56 @@ public class StageSelectScreen implements Screen {
         }
     }
 
+    private void drawRoundedRect(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        // Draw the filled rounded rectangle using arcs and rects
+        // Center horizontal
+        renderer.rect(x + radius, y, width - 2 * radius, height);
+        // Left vertical
+        renderer.rect(x, y + radius, radius, height - 2 * radius);
+        // Right vertical
+        renderer.rect(x + width - radius, y + radius, radius, height - 2 * radius);
+        // Corners
+        renderer.arc(x + radius, y + radius, radius, 180, 90);
+        renderer.arc(x + width - radius, y + radius, radius, 270, 90);
+        renderer.arc(x + width - radius, y + height - radius, radius, 0, 90);
+        renderer.arc(x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawRoundedRectOutline(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        // Draw only the outer edges
+        // Bottom
+        renderer.line(x + radius, y, x + width - radius, y);
+        // Top
+        renderer.line(x + radius, y + height, x + width - radius, y + height);
+        // Left
+        renderer.line(x, y + radius, x, y + height - radius);
+        // Right
+        renderer.line(x + width, y + radius, x + width, y + height - radius);
+        
+        // Corners - we need to draw arcs without the center lines
+        // ShapeRenderer.arc(x, y, radius, start, degrees) draws lines to the center.
+        // We can use a custom function or many small lines to draw the corner arc only.
+        drawArcOnly(renderer, x + radius, y + radius, radius, 180, 90);
+        drawArcOnly(renderer, x + width - radius, y + radius, radius, 270, 90);
+        drawArcOnly(renderer, x + width - radius, y + height - radius, radius, 0, 90);
+        drawArcOnly(renderer, x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawArcOnly(ShapeRenderer renderer, float x, float y, float radius, float start, float degrees) {
+        int segments = 20;
+        float step = degrees / segments;
+        for (int i = 0; i < segments; i++) {
+            float angle1 = (float) Math.toRadians(start + i * step);
+            float angle2 = (float) Math.toRadians(start + (i + 1) * step);
+            renderer.line(
+                x + (float) Math.cos(angle1) * radius,
+                y + (float) Math.sin(angle1) * radius,
+                x + (float) Math.cos(angle2) * radius,
+                y + (float) Math.sin(angle2) * radius
+            );
+        }
+    }
+
     @Override
     public void resize(int width, int height) {
         if (width > 0 && height > 0) {
@@ -285,5 +402,6 @@ public class StageSelectScreen implements Screen {
     @Override
     public void dispose() {
         batch.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
     }
 }

@@ -6,11 +6,13 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 
 public class SettingsScreen implements Screen {
     private final Core game;
     private SpriteBatch batch;
+    private ShapeRenderer shapeRenderer;
     private GlyphLayout layout;
 
     private Rectangle panelBounds;
@@ -27,6 +29,7 @@ public class SettingsScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
         layout = new GlyphLayout();
 
         updateButtonPositions();
@@ -66,18 +69,33 @@ public class SettingsScreen implements Screen {
         batch.draw(game.backgroundStatic, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.draw(game.shadow, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
-
         game.titleFont.setColor(Color.WHITE);
         String header = "SETTINGS";
         layout.setText(game.titleFont, header);
         game.titleFont.draw(batch, header,
             (Gdx.graphics.getWidth() - layout.width) / 2,
             Gdx.graphics.getHeight() - 50);
+        batch.end();
 
-        batch.setColor(0f, 0f, 0f, 0.55f);
-        batch.draw(game.backgroundRectangle, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height);
-        batch.setColor(Color.WHITE);
+        // Draw rounded background panel
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0, 0, 0, 0.7f); // Darker rounded background
+        drawRoundedRect(shapeRenderer, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height, 20f);
+        shapeRenderer.end();
 
+        // Draw thick black outline
+        Gdx.gl.glLineWidth(3.0f);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(Color.BLACK);
+        drawRoundedRectOutline(shapeRenderer, panelBounds.x, panelBounds.y, panelBounds.width, panelBounds.height, 20f);
+        shapeRenderer.end();
+        Gdx.gl.glLineWidth(1.0f);
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        batch.begin();
         game.titleFont.setColor(Color.YELLOW);
         String subtitle = "AUDIO";
         layout.setText(game.titleFont, subtitle);
@@ -134,22 +152,34 @@ public class SettingsScreen implements Screen {
         String pct = (int) (v * 100f) + "%";
         layout.setText(game.bodyFont, pct);
         game.bodyFont.draw(batch, pct, bounds.x + bounds.width - layout.width, bounds.y + 52f);
+        batch.end();
 
-        batch.setColor(0.15f, 0.15f, 0.15f, 0.85f);
-        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, bounds.width, bounds.height);
+        // Draw horizontal line and vertical knob using ShapeRenderer
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        float filledW = bounds.width * v;
-        batch.setColor(1f, 0.84f, 0f, 0.85f);
-        batch.draw(game.backgroundRectangle, bounds.x, bounds.y, filledW, bounds.height);
+        // Background horizontal line (thin)
+        shapeRenderer.setColor(0.3f, 0.3f, 0.3f, 1f);
+        float lineH = 4f;
+        float centerY = bounds.y + bounds.height / 2f;
+        shapeRenderer.rect(bounds.x, centerY - lineH / 2f, bounds.width, lineH);
 
-        float knobW = 18f;
-        float knobH = bounds.height + 12f;
-        float knobX = bounds.x + filledW - knobW / 2f;
-        float knobY = bounds.y - (knobH - bounds.height) / 2f;
-        batch.setColor(Color.WHITE);
-        batch.draw(game.backgroundRectangle, knobX, knobY, knobW, knobH);
+        // Filled part of the line
+        shapeRenderer.setColor(Color.YELLOW);
+        shapeRenderer.rect(bounds.x, centerY - lineH / 2f, bounds.width * v, lineH);
 
-        batch.setColor(Color.WHITE);
+        // Vertical knob line
+        float knobW = 4f;
+        float knobH = 30f;
+        float knobX = bounds.x + (bounds.width * v) - knobW / 2f;
+        shapeRenderer.setColor(Color.WHITE);
+        shapeRenderer.rect(knobX, centerY - knobH / 2f, knobW, knobH);
+
+        shapeRenderer.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        batch.begin();
     }
 
     private void updateActiveSlider(float mouseX) {
@@ -213,6 +243,42 @@ public class SettingsScreen implements Screen {
         game.setScreen(new MenuScreen(game));
     }
 
+    private void drawRoundedRect(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.rect(x + radius, y, width - 2 * radius, height);
+        renderer.rect(x, y + radius, radius, height - 2 * radius);
+        renderer.rect(x + width - radius, y + radius, radius, height - 2 * radius);
+        renderer.arc(x + radius, y + radius, radius, 180, 90);
+        renderer.arc(x + width - radius, y + radius, radius, 270, 90);
+        renderer.arc(x + width - radius, y + height - radius, radius, 0, 90);
+        renderer.arc(x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawRoundedRectOutline(ShapeRenderer renderer, float x, float y, float width, float height, float radius) {
+        renderer.line(x + radius, y, x + width - radius, y);
+        renderer.line(x + radius, y + height, x + width - radius, y + height);
+        renderer.line(x, y + radius, x, y + height - radius);
+        renderer.line(x + width, y + radius, x + width, y + height - radius);
+        drawArcOnly(renderer, x + radius, y + radius, radius, 180, 90);
+        drawArcOnly(renderer, x + width - radius, y + radius, radius, 270, 90);
+        drawArcOnly(renderer, x + width - radius, y + height - radius, radius, 0, 90);
+        drawArcOnly(renderer, x + radius, y + height - radius, radius, 90, 90);
+    }
+
+    private void drawArcOnly(ShapeRenderer renderer, float x, float y, float radius, float start, float degrees) {
+        int segments = 20;
+        float step = degrees / segments;
+        for (int i = 0; i < segments; i++) {
+            float angle1 = (float) Math.toRadians(start + i * step);
+            float angle2 = (float) Math.toRadians(start + (i + 1) * step);
+            renderer.line(
+                x + (float) Math.cos(angle1) * radius,
+                y + (float) Math.sin(angle1) * radius,
+                x + (float) Math.cos(angle2) * radius,
+                y + (float) Math.sin(angle2) * radius
+            );
+        }
+    }
+
     @Override
     public void resize(int width, int height) {
         if (width > 0 && height > 0) {
@@ -233,6 +299,9 @@ public class SettingsScreen implements Screen {
     public void dispose() {
         if (batch != null) {
             batch.dispose();
+        }
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
         }
     }
 }
